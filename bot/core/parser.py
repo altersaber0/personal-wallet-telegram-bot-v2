@@ -16,6 +16,7 @@ _MONTH_NAMES = (
     "декабрь"
 )
 
+
 def command_type(message: str) -> Command:
     msg = message.strip().lower()
 
@@ -40,6 +41,7 @@ def command_type(message: str) -> Command:
             return Command.CONCRETE_MONTH_AND_YEAR
         case _:
             return Command.UNKNOWN
+
 
 def parse_expense(message: str) -> Expense:
     try:
@@ -66,3 +68,17 @@ def parse_expense(message: str) -> Expense:
     except Exception:
         raise ValueError("Incorrect expense message")
 
+
+def parse_income(message: str) -> Income:
+    try:
+        words = message[1:].strip().split()
+        if len(words) < 2:
+            raise ValueError("Incorrect income message")
+
+        amount = int(words[0])
+        description = " ".join(words[1:])
+
+        return Income(amount, description, utils.time_now())
+
+    except Exception:
+        raise ValueError("Incorrect income message")
