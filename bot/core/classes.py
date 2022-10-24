@@ -14,14 +14,13 @@ class Command(Enum):
 
 
 class Categories(Enum):
-    FOOD = "продукты"
-    TRANSPORT = "транспорт"
-    ACTIVITIES = "развлечения"
-    MEDICINE = "лекарства"
-    MISC = "расходники"
-    MONTHLY = "ежемесячные"
-    OTHER = "другое"
-
+    FOOD = "food"
+    TRANSPORT = "transport"
+    ENTERTAINMENT = "entertainment"
+    MEDICINE = "medicine"
+    MISC = "misc"
+    MONTHLY = "monthly"
+    OTHER = "other"
 
 
 class Expense(NamedTuple):
