@@ -1,20 +1,22 @@
+from datetime import datetime
+
 from classes import Command, Categories, Expense, Income 
 import utils
 
-_MONTH_NAMES = (
-    "январь",
-    "февраль",
-    "март",
-    "апрель",
-    "май",
-    "июнь",
-    "июль",
-    "август",
-    "сентябрь",
-    "октябрь",
-    "ноябрь",
-    "декабрь"
-)
+_MONTH_NAMES = {
+    1: "январь",
+    2: "февраль",
+    3: "март",
+    4: "апрель",
+    5: "май",
+    6: "июнь",
+    7: "июль",
+    8: "август",
+    9: "сентябрь",
+    10: "октябрь",
+    11: "ноябрь",
+    12: "декабрь"
+}
 
 
 def command_type(message: str) -> Command:
@@ -35,10 +37,10 @@ def command_type(message: str) -> Command:
             return Command.BALANCE_NEW
         case ["month" | "месяц"]:
             return Command.MONTH
-        case [month] if month.lower() in _MONTH_NAMES:
-            return Command.CONCRETE_MONTH
-        case [month, year] if month.lower() in _MONTH_NAMES and year.isdigit():
-            return Command.CONCRETE_MONTH_AND_YEAR
+        case [month] if month.lower() in _MONTH_NAMES.values():
+            return Command.MONTH
+        case [month, year] if month.lower() in _MONTH_NAMES.values() and year.isdigit():
+            return Command.MONTH
         case _:
             return Command.UNKNOWN
 
@@ -82,3 +84,23 @@ def parse_income(message: str) -> Income:
 
     except Exception:
         raise ValueError("Incorrect income message")
+
+
+def parse_month(message: str) -> datetime:
+    words = message.split()
+    month = words[0]
+    if month in ["month", "месяц"]:
+        current = datetime.now()
+        return datetime(current.year, current.month, 1)
+        
+    index = None
+    for idx, name in _MONTH_NAMES.items():
+        if name == month:
+            index = idx
+    try:
+        year = int(words[1])
+        return datetime(year, month, 1)
+    except IndexError:
+        pass
+
+    return datetime(datetime.now().year, index, 1)

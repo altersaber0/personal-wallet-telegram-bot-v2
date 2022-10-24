@@ -10,8 +10,6 @@ class Command(Enum):
     BALANCE = auto()
     BALANCE_NEW = auto()
     MONTH = auto()
-    CONCRETE_MONTH = auto()
-    CONCRETE_MONTH_AND_YEAR = auto()
     UNKNOWN = auto()
 
 
