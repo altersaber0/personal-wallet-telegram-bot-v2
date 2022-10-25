@@ -17,7 +17,7 @@ def main():
         model=Model()
     )
     
-    controller.start_bot()
+    controller.start_bot(poll_interval=1, timeout=5)
 
 
 if __name__ == "__main__":

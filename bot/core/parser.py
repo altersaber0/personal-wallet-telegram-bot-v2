@@ -3,6 +3,7 @@ from datetime import datetime
 from classes import Command, Categories, Expense, Income 
 import utils
 
+# mapping between month index and name
 _MONTH_NAMES = {
     1: "january",
     2: "february",
@@ -22,12 +23,14 @@ _MONTH_NAMES = {
 def command_type(message: str) -> Command:
     msg = message.strip().lower()
 
+    # match on first character
     match msg[0]:
         case "-":
             return Command.EXPENSE
         case "+":
             return Command.INCOME
     
+    # match on individual words
     match msg.split():
         case ["cancel"]:
             return Command.CANCEL
@@ -49,10 +52,15 @@ def parse_expense(message: str) -> Expense:
     try:
         words = message[1:].strip().split()
         amount = int(words[0])
+
+        # check if any category is present in message
         category = "other"
         for cat in Categories:
             if words[1].lower() == cat.value:
                 category = words[1].lower()
+
+        # description is either text after category, if it was stated
+        # or text after amount
         description = None
         if category == "other":
             try:
@@ -74,6 +82,7 @@ def parse_expense(message: str) -> Expense:
 def parse_income(message: str) -> Income:
     try:
         words = message[1:].strip().split()
+        # should contain at least 1 word of description
         if len(words) < 2:
             raise ValueError("Incorrect income message")
 
@@ -89,18 +98,21 @@ def parse_income(message: str) -> Income:
 def parse_month(message: str) -> datetime:
     words = message.split()
     month = words[0].lower()
+    # return datetime of current month
     if month == "month":
         current = datetime.now()
         return datetime(current.year, current.month, 1)
-        
+
+    # get month index based on name  
     index = None
     for idx, name in _MONTH_NAMES.items():
         if name == month:
             index = idx
+    # check if concrete year was stated
     try:
         year = int(words[1])
         return datetime(year, month, 1)
     except IndexError:
         pass
-
+    # return concrete month in current year
     return datetime(datetime.now().year, index, 1)
