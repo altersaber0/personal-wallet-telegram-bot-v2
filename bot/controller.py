@@ -37,10 +37,14 @@ class Controller:
         "/categories - show category names",
         ]))
     
+    def balance(self, update: Update, context) -> None:
+        balance = self.model.get_balance()
+        self.view.reply_balance(update, balance)
+    
     def categories(self, update: Update, context) -> None:
         response = f"Categories:\n"
-        for cat in Categories:
-            response += f"{cat.value}\n"
+        for idx, cat in enumerate(Categories, start=1):
+            response += f"{idx}. {cat.value}\n"
         self.view.reply(update, response)
     
     def handle_message(self, update: Update, context) -> None:

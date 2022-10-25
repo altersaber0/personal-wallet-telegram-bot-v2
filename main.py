@@ -12,13 +12,13 @@ def main():
     dotenv.load_dotenv(".env")
     TELEGRAM_API_KEY = os.getenv("TELEGRAM_API_KEY")
     TELEGRAM_USER_ID = int(os.getenv("TELEGRAM_USER_ID"))
-    PATH_TO_DATA_DIR = Path("data")
+    DATA_DIR_PATH = Path("data")
 
     controller = Controller(
         telegram_api_key=TELEGRAM_API_KEY,
         telegram_user_id=TELEGRAM_USER_ID,
         view=View(),
-        model=Model(PATH_TO_DATA_DIR)
+        model=Model(DATA_DIR_PATH)
     )
     
     controller.start_bot(poll_interval=1, timeout=5)
