@@ -112,11 +112,12 @@ def parse_month(message: str) -> datetime:
     # check if concrete year was stated
     try:
         year = int(words[1])
-        return datetime(year, month, 1)
+        return datetime(year, index, 1)
     except IndexError:
         pass
     # return concrete month in current year
     return datetime(datetime.now().year, index, 1)
+
 
 def parse_new_balance(message: str) -> float:
     _, balance = message.split()
