@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from classes import Command, Categories, Expense, Income 
-import utils
+from .classes import Command, Categories, Expense, Income 
+from .utils import time_now
 
 # mapping between month index and name
 _MONTH_NAMES = {
@@ -36,7 +36,7 @@ def command_type(message: str) -> Command:
             return Command.CANCEL
         case ["balance" | "bl"]:
             return Command.BALANCE
-        case ["balance" | "bl", amount] if amount.isdigit():
+        case ["balance" | "bl", amount]:
             return Command.BALANCE_NEW
         case ["month"]:
             return Command.MONTH
@@ -51,7 +51,7 @@ def command_type(message: str) -> Command:
 def parse_expense(message: str) -> Expense:
     try:
         words = message[1:].strip().split()
-        amount = int(words[0])
+        amount = float(words[0])
 
         # check if any category is present in message
         category = "other"
@@ -73,7 +73,7 @@ def parse_expense(message: str) -> Expense:
             except:
                 pass
 
-        return Expense(amount, category, description, utils.time_now())
+        return Expense(amount, category, description, time_now())
 
     except Exception:
         raise ValueError("Incorrect expense message")
@@ -82,14 +82,15 @@ def parse_expense(message: str) -> Expense:
 def parse_income(message: str) -> Income:
     try:
         words = message[1:].strip().split()
+
         # should contain at least 1 word of description
         if len(words) < 2:
             raise ValueError("Incorrect income message")
 
-        amount = int(words[0])
+        amount = float(words[0])
         description = " ".join(words[1:])
 
-        return Income(amount, description, utils.time_now())
+        return Income(amount, description, time_now())
 
     except Exception:
         raise ValueError("Incorrect income message")
@@ -116,3 +117,11 @@ def parse_month(message: str) -> datetime:
         pass
     # return concrete month in current year
     return datetime(datetime.now().year, index, 1)
+
+def parse_new_balance(message: str) -> float:
+    _, balance = message.split()
+    try:
+        amount = float(balance)
+        return amount
+    except ValueError:
+        raise ValueError("Incorrect new balance")

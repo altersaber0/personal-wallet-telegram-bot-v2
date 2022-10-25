@@ -1,8 +1,8 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram.update import Update
 
-from .core.classes import Expense, Income, Categories
-from .core.parser import command_type, parse_expense, parse_income, parse_month
+from .core.classes import Expense, Income, Categories, Command
+from .core.parser import command_type, parse_expense, parse_income, parse_month, parse_new_balance
 from .view import View
 from .model import Model
 
@@ -44,10 +44,41 @@ class Controller:
         self.view.reply(update, response)
     
     def handle_message(self, update: Update, context) -> None:
-        self.view.reply(update, update.message.text)
+        message = update.message.text
+        command = command_type(message)
+        match command:
+            case Command.EXPENSE:
+                try:
+                    expense = parse_expense(message)
+                    balance = self.model.get_balance()
+                    self.model.set_balance(balance - expense.amount)
+                    self.view.reply_expense(update, expense)
+                except ValueError:
+                    self.view.reply("Invalid expense message.")
+            case Command.INCOME:
+                try:
+                    income = parse_income(message)
+                    balance = self.model.get_balance()
+                    self.model.set_balance(balance + income.amount)
+                    self.view.reply_income(update, income)
+                except ValueError:
+                    self.view.reply("Invalid income message.")
+            case Command.BALANCE:
+                balance = self.model.get_balance()
+                self.view.reply_balance(update, balance)
+            case Command.BALANCE_NEW:
+                try:
+                    new = parse_new_balance(message)
+                    self.model.set_balance(new)
+                    self.view.reply_balance(update, new)
+                except ValueError:
+                    self.view.reply("Invalid new balance.")
 
+            case Command.UNKNOWN:
+                self.view.reply(update, "Unknown text command.")
     
     def start_bot(self, poll_interval: float, timeout: float) -> None:
+        self.model.setup()
         dp = self.updater.dispatcher
         dp.add_handler(CommandHandler("start", self.start, filters=self.user_filter))
         dp.add_handler(CommandHandler("help", self.help, filters=self.user_filter))

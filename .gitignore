@@ -1,4 +1,5 @@
 bot/__pycache__/
+bot/core/__pycache__/
 venv/
 data/
 .env
