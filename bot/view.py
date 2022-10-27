@@ -2,16 +2,23 @@ from datetime import datetime
 
 from telegram.update import Update
 
-from .core.classes import Expense, Income
+from .core.classes import Expense, Income, Command
 from .core.utils import str_from_time
 
 
 class View:
-    def __init__(self) -> None:
-        ...
     
     def reply(self, update: Update, text: str) -> None:
         update.message.reply_text(text)
+    
+    def reply_error(self, update: Update, command: Command) -> None:
+        match command:
+            case Command.EXPENSE:
+                self.reply(update, "Invalid expense message")
+            case Command.INCOME:
+                self.reply(update, "Invalid income message")
+            case Command.BALANCE_NEW:
+                self.reply(update, "Invalid new balance message")
     
     def reply_expense(self, update: Update, expense: Expense) -> None:
         response = "\n".join(["Added new expense:",
@@ -39,6 +46,3 @@ class View:
     def reply_balance(self, update: Update, balance: float) -> None:
         response = f"Current balance is: {balance:.2f}"
         self.reply(update, response)
-    
-    def reply_month(self, update: Update, month: datetime) -> None:
-        ...

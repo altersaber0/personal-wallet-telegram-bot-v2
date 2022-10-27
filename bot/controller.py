@@ -13,9 +13,11 @@ class Controller:
         self.view = view
         self.model = model
     
+    # /start command
     def start(self, update: Update, context) -> None:
         self.view.reply(update, "Bot started.")
     
+    # /help command
     def help(self, update: Update, context) -> None:
         self.view.reply(update, "\n".join([
         "Text commands:",
@@ -37,58 +39,63 @@ class Controller:
         "/categories - show category names",
         ]))
     
+    # /balance command
     def balance(self, update: Update, context) -> None:
         balance = self.model.get_balance()
         self.view.reply_balance(update, balance)
-    
+
+    # /categories command
     def categories(self, update: Update, context) -> None:
         response = f"Categories:\n"
         for idx, cat in enumerate(Categories, start=1):
-            response += f"{idx}. {cat.value}\n"
+            response += f"{idx}. {cat.value.capitalize()}\n"
         self.view.reply(update, response)
     
+    # match text message type to corresponding reply or error
     def handle_message(self, update: Update, context) -> None:
         message = update.message.text
         command = command_type(message)
-        match command:
-            case Command.EXPENSE:
-                try:
+        try:
+            match command:
+                case Command.EXPENSE:
                     expense = parse_expense(message)
+                    # update balance accordingly
                     balance = self.model.get_balance()
                     self.model.set_balance(balance - expense.amount)
                     self.view.reply_expense(update, expense)
-                except ValueError:
-                    self.view.reply("Invalid expense message.")
-            case Command.INCOME:
-                try:
+                case Command.INCOME:
                     income = parse_income(message)
+                    # update balance accordingly
                     balance = self.model.get_balance()
                     self.model.set_balance(balance + income.amount)
                     self.view.reply_income(update, income)
-                except ValueError:
-                    self.view.reply("Invalid income message.")
-            case Command.BALANCE:
-                balance = self.model.get_balance()
-                self.view.reply_balance(update, balance)
-            case Command.BALANCE_NEW:
-                try:
+                case Command.BALANCE:
+                    balance = self.model.get_balance()
+                    self.view.reply_balance(update, balance)
+                case Command.BALANCE_NEW:
                     new = parse_new_balance(message)
                     self.model.set_balance(new)
                     self.view.reply_balance(update, new)
-                except ValueError:
-                    self.view.reply("Invalid new balance.")
-
-            case Command.UNKNOWN:
-                self.view.reply(update, "Unknown text command.")
+                case Command.UNKNOWN:
+                    self.view.reply(update, "Unknown text command.")
+                    
+        except ValueError:
+            self.view.reply_error(update, command)
     
     def start_bot(self, poll_interval: float, timeout: float) -> None:
+        # create DB and balance files if they don't exist yet
         self.model.setup()
+
+        # add /command and message handlers
         dp = self.updater.dispatcher
         dp.add_handler(CommandHandler("start", self.start, filters=self.user_filter))
         dp.add_handler(CommandHandler("help", self.help, filters=self.user_filter))
         dp.add_handler(CommandHandler("categories", self.categories, filters=self.user_filter))
-        dp.add_handler(MessageHandler(Filters.text & (~Filters.command) & self.user_filter, self.handle_message))
 
+        # filter out /command messages
+        dp.add_handler(MessageHandler(Filters.text & (~Filters.command) & self.user_filter, self.handle_message))
+        
+        # start polling updates from Telegram servers
         print("Bot running...")
         self.updater.start_polling(poll_interval=poll_interval, timeout=timeout)
         self.updater.idle()
