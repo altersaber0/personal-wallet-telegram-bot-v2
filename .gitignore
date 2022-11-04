@@ -1,6 +1,4 @@
-__pycache__/
-bot/__pycache__/
-bot/core/__pycache__/
+**/__pycache__
 venv/
-data/
 .env
+data/

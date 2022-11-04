@@ -3,21 +3,25 @@ import os
 from pathlib import Path
 
 class Model:
-    def __init__(self, folder_path: Path) -> None:
-        self.folder_path = folder_path.resolve()
-        self._balance_path = self.folder_path / "balance.txt"
-        self._db_path = self.folder_path / "database.db"
+    def __init__(self, folder: str) -> None:
+        self.folder = folder
+        self._folder_path = Path(folder).resolve(strict=True)
+        self._balance_path = self._folder_path / "balance.txt"
+        self._db_path = self._folder_path / "database.db"
     
     def setup(self) -> None:
-        if not self.folder_path.exists():
-            os.mkdir(self.folder_path)
+        # create folder, database and balance file
+        if not self._folder_path.exists():
+            os.mkdir(self._folder_path)
             with open(self._balance_path, "w") as f:
                 f.write("0")
 
+        # create balance file
         if not self._balance_path.exists():
             with open(self._balance_path, "w") as f:
                 f.write("0")
-        
+
+        # create database
         if not self._db_path.exists():
             pass
     
