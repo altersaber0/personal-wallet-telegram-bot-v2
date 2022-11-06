@@ -44,11 +44,18 @@ class Controller:
         balance = self.model.get_balance()
         self.view.reply_balance(update, balance)
 
+    # /cancel command
+    def cancel(self, update: Update, context) -> None:
+        expense = self.model.delete_last_expense()
+        self.view.reply_cancel(update, expense)
+
     # /categories command
     def categories(self, update: Update, context) -> None:
         response = f"Categories:\n"
-        for idx, cat, aliases in enumerate(self.model.get_categories().items(), start=1):
-            response += f"{idx}. {cat.capitalize()}: {', '.join(aliases)}\n"
+        for idx, categories in enumerate(self.model.get_categories().items(), start=1):
+            name = categories[0]
+            aliases = categories[1]
+            response += f"{idx}. {name.capitalize()}: {', '.join(aliases)}\n"
         self.view.reply(update, response)
     
     # match text message type to corresponding reply or error
@@ -60,16 +67,21 @@ class Controller:
                 case Command.EXPENSE:
                     categories = self.model.get_categories()
                     expense = parse_expense(message, categories)
+                    self.model.add_expense(expense)
                     # update balance accordingly
                     balance = self.model.get_balance()
                     self.model.set_balance(balance - expense.amount)
                     self.view.reply_expense(update, expense)
                 case Command.INCOME:
                     income = parse_income(message)
+                    self.model.add_income(income)
                     # update balance accordingly
                     balance = self.model.get_balance()
                     self.model.set_balance(balance + income.amount)
                     self.view.reply_income(update, income)
+                case Command.CANCEL:
+                    expense = self.model.delete_last_expense()
+                    self.view.reply_cancel(update, expense)
                 case Command.BALANCE:
                     balance = self.model.get_balance()
                     self.view.reply_balance(update, balance)
@@ -92,6 +104,8 @@ class Controller:
         dp.add_handler(CommandHandler("start", self.start, filters=self.user_filter))
         dp.add_handler(CommandHandler("help", self.help, filters=self.user_filter))
         dp.add_handler(CommandHandler("categories", self.categories, filters=self.user_filter))
+        dp.add_handler(CommandHandler("balance", self.balance, filters=self.user_filter))
+        dp.add_handler(CommandHandler("cancel", self.cancel, filters=self.user_filter))
 
         # filter out /command messages
         dp.add_handler(MessageHandler(Filters.text & (~Filters.command) & self.user_filter, self.handle_message))

@@ -13,16 +13,6 @@ class Command(Enum):
     UNKNOWN = auto()
 
 
-class Categories(Enum):
-    FOOD = "food"
-    TRANSPORT = "transport"
-    ENTERTAINMENT = "entertainment"
-    MEDICINE = "medicine"
-    MISC = "misc"
-    MONTHLY = "monthly"
-    OTHER = "other"
-
-
 class Expense(NamedTuple):
     amount: float
     category: str

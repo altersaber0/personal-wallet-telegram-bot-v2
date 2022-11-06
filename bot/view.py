@@ -21,10 +21,11 @@ class View:
                 self.reply(update, "Invalid new balance message")
     
     def reply_expense(self, update: Update, expense: Expense) -> None:
+        description = expense.description if expense.description is not None else ""
         response = "\n".join(["Added new expense:",
                              f"Amount: {expense.amount:.2f}",
                              f"Category: {expense.category.capitalize()}",
-                             f"Description: {expense.description}",
+                             f"Description: {description}",
                              f"Time: {str_from_time(expense.time)}"])
         self.reply(update, response)
     
@@ -36,10 +37,11 @@ class View:
         self.reply(update, response)
     
     def reply_cancel(self, update: Update, expense: Expense) -> None:
+        description = expense.description if expense.description is not None else ""
         response = "\n".join(["Deleted expense:",
                              f"Amount: {expense.amount:.2f}",
                              f"Category: {expense.category.capitalize()}",
-                             f"Description: {expense.description}",
+                             f"Description: {description}",
                              f"Time: {str_from_time(expense.time)}"])
         self.reply(update, response)
     
