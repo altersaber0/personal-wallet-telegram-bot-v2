@@ -1,7 +1,7 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram.update import Update
 
-from .core.classes import Expense, Income, Categories, Command
+from .core.classes import Expense, Income, Command
 from .core.parser import command_type, parse_expense, parse_income, parse_month, parse_new_balance
 from .view import View
 from .model import Model
@@ -47,8 +47,8 @@ class Controller:
     # /categories command
     def categories(self, update: Update, context) -> None:
         response = f"Categories:\n"
-        for idx, cat in enumerate(Categories, start=1):
-            response += f"{idx}. {cat.value.capitalize()}\n"
+        for idx, cat, aliases in enumerate(self.model.get_categories().items(), start=1):
+            response += f"{idx}. {cat.capitalize()}: {', '.join(aliases)}\n"
         self.view.reply(update, response)
     
     # match text message type to corresponding reply or error
@@ -58,7 +58,8 @@ class Controller:
         try:
             match command:
                 case Command.EXPENSE:
-                    expense = parse_expense(message)
+                    categories = self.model.get_categories()
+                    expense = parse_expense(message, categories)
                     # update balance accordingly
                     balance = self.model.get_balance()
                     self.model.set_balance(balance - expense.amount)

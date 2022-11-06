@@ -23,7 +23,7 @@ class View:
     def reply_expense(self, update: Update, expense: Expense) -> None:
         response = "\n".join(["Added new expense:",
                              f"Amount: {expense.amount:.2f}",
-                             f"Category: {expense.category}",
+                             f"Category: {expense.category.capitalize()}",
                              f"Description: {expense.description}",
                              f"Time: {str_from_time(expense.time)}"])
         self.reply(update, response)
@@ -38,7 +38,7 @@ class View:
     def reply_cancel(self, update: Update, expense: Expense) -> None:
         response = "\n".join(["Deleted expense:",
                              f"Amount: {expense.amount:.2f}",
-                             f"Category: {expense.category}",
+                             f"Category: {expense.category.capitalize()}",
                              f"Description: {expense.description}",
                              f"Time: {str_from_time(expense.time)}"])
         self.reply(update, response)
