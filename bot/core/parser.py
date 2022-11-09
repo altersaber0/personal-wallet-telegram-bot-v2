@@ -34,12 +34,8 @@ def command_type(message: str) -> Command:
     
     # match on individual words
     match msg.split():
-        case ["cancel"]:
-            return Command.CANCEL
-        case ["balance" | "bl"]:
-            return Command.BALANCE
-        case ["balance" | "bl", amount]:
-            return Command.BALANCE_NEW
+        case ["balance", amount]:
+            return Command.SET_BALANCE
         case ["month"]:
             return Command.MONTH
         case [month] if month.lower() in _MONTH_NAMES.values():

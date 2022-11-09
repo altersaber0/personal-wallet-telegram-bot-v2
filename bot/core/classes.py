@@ -6,9 +6,7 @@ from datetime import datetime
 class Command(Enum):
     EXPENSE = auto()
     INCOME = auto()
-    CANCEL = auto()
-    BALANCE = auto()
-    BALANCE_NEW = auto()
+    SET_BALANCE = auto()
     MONTH = auto()
     UNKNOWN = auto()
 

@@ -17,7 +17,7 @@ class View:
                 self.reply(update, "Invalid expense message")
             case Command.INCOME:
                 self.reply(update, "Invalid income message")
-            case Command.BALANCE_NEW:
+            case Command.SET_BALANCE:
                 self.reply(update, "Invalid new balance message")
     
     def reply_expense(self, update: Update, expense: Expense) -> None:
@@ -48,3 +48,4 @@ class View:
     def reply_balance(self, update: Update, balance: float) -> None:
         response = f"Current balance is: {balance:.2f}"
         self.reply(update, response)
+        

@@ -43,8 +43,8 @@ class TestParser(unittest.TestCase):
         self.assertEqual(parse_income(correct[3]), Income(100.5, "found", time_now()))
     
     def test_new_balance_parsing(self):
-        correct = ["balance 2000.567", "balance 2000", "bl 123.456", "bl 1000"]
-        incorrect = ["balance ahdahd", "bl sdjfs", "bl 123dfsfd", "balance 123...89"]
+        correct = ["balance 2000.567", "balance 2000"]
+        incorrect = ["balance ahdahd", "balance 123...89"]
 
         for msg in incorrect:
             self.assertRaises(ValueError, parse_new_balance, msg)
@@ -65,11 +65,8 @@ class TestParser(unittest.TestCase):
         self.assertEqual(command_type("- 250 taxi"), Command.EXPENSE)
         self.assertEqual(command_type("+250 from friend"), Command.INCOME)
         self.assertEqual(command_type("+ 250 from friend"), Command.INCOME)
-        self.assertEqual(command_type("balance"), Command.BALANCE)
-        self.assertEqual(command_type("bl"), Command.BALANCE)
-        self.assertEqual(command_type("balance 2000"), Command.BALANCE_NEW)
-        self.assertEqual(command_type("balance dksf"), Command.BALANCE_NEW)
-        self.assertEqual(command_type("cancel"), Command.CANCEL)
+        self.assertEqual(command_type("balance 2000"), Command.SET_BALANCE)
+        self.assertEqual(command_type("balance dksf"), Command.SET_BALANCE)
         self.assertEqual(command_type("month"), Command.MONTH)
         self.assertEqual(command_type("july"), Command.MONTH)
         self.assertEqual(command_type("july 2020"), Command.MONTH)
