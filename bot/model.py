@@ -8,47 +8,13 @@ from .core.classes import Expense, Income
 from .core.utils import time_from_str
 
 
-class Model:
-    def __init__(self, folder: str) -> None:
-        self.folder = folder
-        self._folder_path = Path(folder).resolve(strict=True)
-        self._balance_path = self._folder_path / "balance.txt"
-        self._db_path = self._folder_path / "database.db"
-        self._categories_path = self._folder_path / "categories.json"
-    
-    # create and initialize all data files if they don't exist yet
-    def setup(self) -> None:
-        # create folder, database and balance file
-        if not self._folder_path.exists():
-            os.mkdir(self._folder_path)
+class Database:
+    def __init__(self, path: str | Path) -> None:
+        self.path = path
 
-        # create balance file
-        if not self._balance_path.exists():
-            with open(self._balance_path, "w") as f:
-                f.write("0")
-
-        # create database
-        if not self._db_path.exists():
-            self.create_database()
-    
-    def get_balance(self) -> float:
-        with open(self._balance_path, "r") as f:
-            balance = float(f.read())
-            return balance
-    
-    def set_balance(self, new: float) -> None:
-        with open(self._balance_path, "w") as f:
-            f.write(str(new))
-    
-    def get_categories(self) -> dict[str, list[str]]:
-        with open(self._categories_path, "r", encoding="utf8") as f:
-            categories = json.loads(f.read())
-        return categories
-    
-    # connect to db, then commit and close the connection after query
     @contextmanager
-    def db_connection(self):
-        conn = sqlite3.connect(self._db_path)
+    def connection(self):
+        conn = sqlite3.connect(self.path)
         try:
             yield conn.cursor()
         finally:
@@ -56,8 +22,8 @@ class Model:
             conn.close()
     
     # create database schema 
-    def create_database(self):
-        with self.db_connection() as cursor:
+    def create_schema(self):
+        with self.connection() as cursor:
             cursor.execute(
                 """
                 CREATE TABLE categories (
@@ -87,15 +53,9 @@ class Model:
                 )
                 """
             )
-            # insert all category names into respective table
-            categories = self.get_categories()
-            for name in categories.keys():
-                cursor.execute(
-                    "INSERT INTO categories VALUES (?)", (name,)
-                )
-    
+
     def add_income(self, income: Income) -> None:
-        with self.db_connection() as cursor:
+        with self.connection() as cursor:
             cursor.execute(
                 """
                 INSERT INTO incomes (amount, description, time)
@@ -103,9 +63,9 @@ class Model:
                 """,
                 income._asdict()
             )
-
+    
     def add_expense(self, expense: Expense) -> None:
-        with self.db_connection() as cursor:
+        with self.connection() as cursor:
             cursor.execute(
                 """
                 INSERT INTO expenses (amount, description, time, category_name)
@@ -113,9 +73,9 @@ class Model:
                 """,
                 expense._asdict()
             )
-
+    
     def delete_last_expense(self) -> Expense:
-        with self.db_connection() as cursor:
+        with self.connection() as cursor:
             # get last expense for the response to user
             cursor.execute(
                 """
@@ -145,3 +105,55 @@ class Model:
             )
 
             return expense
+    
+    def add_category(self, name: str) -> None:
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO categories VALUES (?)
+                """,
+                (name,)
+            )
+
+
+class Model:
+    def __init__(self, folder: str) -> None:
+        self.folder = folder
+        self._folder_path = Path(folder).resolve(strict=True)
+        self._balance_path = self._folder_path / "balance.txt"
+        self._categories_path = self._folder_path / "categories.json"
+        self._db_path = self._folder_path / "database.db"
+        self.db = Database(self._db_path)
+    
+    # create and initialize all data files if they don't exist yet
+    def setup(self) -> None:
+        # create folder, database and balance file
+        if not self._folder_path.exists():
+            os.mkdir(self._folder_path)
+
+        # create balance file
+        if not self._balance_path.exists():
+            with open(self._balance_path, "w") as f:
+                f.write("0")
+
+        # create database
+        if not self._db_path.exists():
+            self.db.create_schema()
+
+            categories = self.get_categories()
+            for name in categories:
+                self.db.add_category(name)
+    
+    def get_balance(self) -> float:
+        with open(self._balance_path, "r") as f:
+            balance = float(f.read())
+            return balance
+    
+    def set_balance(self, new: float) -> None:
+        with open(self._balance_path, "w") as f:
+            f.write(str(new))
+    
+    def get_categories(self) -> dict[str, list[str]]:
+        with open(self._categories_path, "r", encoding="utf8") as f:
+            categories = json.loads(f.read())
+        return categories

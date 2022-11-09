@@ -44,7 +44,10 @@ class Controller:
 
     # /cancel_last command
     def cancel_last(self, update: Update, context) -> None:
-        expense = self.model.delete_last_expense()
+        expense = self.model.db.delete_last_expense()
+        # return to previous balance
+        balance = self.model.get_balance()
+        self.model.set_balance(balance + expense.amount)
         self.view.reply_cancel(update, expense)
 
     # /categories command
@@ -65,28 +68,23 @@ class Controller:
                 case Command.EXPENSE:
                     categories = self.model.get_categories()
                     expense = parse_expense(message, categories)
-
                     # update data in model
-                    self.model.add_expense(expense)
+                    self.model.db.add_expense(expense)
                     balance = self.model.get_balance()
                     self.model.set_balance(balance - expense.amount)
-
                     self.view.reply_expense(update, expense)
 
                 case Command.INCOME:
                     income = parse_income(message)
-
                     # update data in model
-                    self.model.add_income(income)
+                    self.model.db.add_income(income)
                     balance = self.model.get_balance()
                     self.model.set_balance(balance + income.amount)
-
                     self.view.reply_income(update, income)
 
                 case Command.SET_BALANCE:
                     new = parse_new_balance(message)
                     self.model.set_balance(new)
-
                     self.view.reply_balance(update, new)
 
                 case Command.UNKNOWN:
