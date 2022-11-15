@@ -22,3 +22,8 @@ class Income(NamedTuple):
     amount: float
     description: str
     time: datetime
+
+
+class Category(NamedTuple):
+    name: str
+    aliases: list[str]

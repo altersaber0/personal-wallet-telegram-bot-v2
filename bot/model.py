@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from contextlib import contextmanager
 
-from .core.classes import Expense, Income
+from .core.classes import Expense, Income, Category
 from .core.utils import time_from_str
 
 
@@ -22,12 +22,13 @@ class Database:
             conn.close()
     
     # create database schema 
-    def create_schema(self):
+    def create_schema(self) -> None:
         with self.connection() as cursor:
             cursor.execute(
                 """
                 CREATE TABLE categories (
-                    name TEXT PRIMARY KEY
+                    name TEXT PRIMARY KEY,
+                    aliases TEXT
                 )
                 """
             )
@@ -100,17 +101,43 @@ class Database:
             # delete from database
             cursor.execute(
                 """
-                DELETE FROM expenses WHERE id = (SELECT MAX(id) FROM expenses)
+                DELETE FROM expenses
+                WHERE id = (SELECT MAX(id) FROM expenses)
                 """
             )
 
             return expense
     
-    def add_category(self, name: str) -> None:
+    def get_categories(self) -> list[Category]:
         with self.connection() as cursor:
             cursor.execute(
                 """
-                INSERT INTO categories VALUES (?)
+                SELECT * FROM categories
+                """
+            )
+            data = cursor.fetchall()
+            categories = [
+                Category(row[0], row[1].split())
+                for row in data
+            ]
+            return categories
+
+    def add_category(self, category: Category) -> None:
+        name = category.name
+        aliases = " ".join(category.aliases)
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO categories (name, aliases) VALUES (?, ?)
+                """,
+                (name, aliases)
+            )
+    
+    def delete_category(self, name: str) -> None:
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM categories WHERE name = ?
                 """,
                 (name,)
             )
@@ -121,7 +148,6 @@ class Model:
         self.folder = folder
         self._folder_path = Path(folder).resolve(strict=True)
         self._balance_path = self._folder_path / "balance.txt"
-        self._categories_path = self._folder_path / "categories.json"
         self._db_path = self._folder_path / "database.db"
         self.db = Database(self._db_path)
     
@@ -139,10 +165,19 @@ class Model:
         # create database
         if not self._db_path.exists():
             self.db.create_schema()
+            self.db.add_category(Category("other", ["другое"]))
 
-            categories = self.get_categories()
-            for name in categories:
-                self.db.add_category(name)
+            # if there is a starter json file with category names and aliases
+            categories_path = self._folder_path / "categories.json"
+            if categories_path.exists():
+                with open(categories_path, "r", encoding="utf8") as f:
+                    categories: dict[str, list[str]] = json.load(f)
+                    categories = [
+                        Category(name, aliases)
+                        for name, aliases in categories.items()
+                    ]
+                    for category in categories:
+                        self.db.add_category(category)
     
     def get_balance(self) -> float:
         with open(self._balance_path, "r") as f:
@@ -152,8 +187,3 @@ class Model:
     def set_balance(self, new: float) -> None:
         with open(self._balance_path, "w") as f:
             f.write(str(new))
-    
-    def get_categories(self) -> dict[str, list[str]]:
-        with open(self._categories_path, "r", encoding="utf8") as f:
-            categories = json.loads(f.read())
-        return categories

@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 import json
 
-from .classes import Command, Expense, Income 
+from .classes import Command, Expense, Income, Category
 from .utils import time_now
 
 # mapping between month index and name
@@ -46,16 +46,16 @@ def command_type(message: str) -> Command:
             return Command.UNKNOWN
 
 
-def parse_expense(message: str, categories: dict[str, list[str]]) -> Expense:
+def parse_expense(message: str, categories: list[Category]) -> Expense:
     try:
         words = message[1:].strip().split()
         amount = float(words[0])
 
         # check if any category is present in message
         category = "other"
-        for cat, aliases in categories.items():
-            if words[1].lower() in aliases:
-                category = cat
+        for cat in categories:
+            if words[1].lower() in cat.aliases:
+                category = cat.name
 
         # description is either text after category, if it was stated
         # or text after amount

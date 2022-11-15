@@ -53,9 +53,9 @@ class Controller:
     # /categories command
     def categories(self, update: Update, context) -> None:
         response = f"Categories:\n"
-        for idx, categories in enumerate(self.model.get_categories().items(), start=1):
-            name = categories[0]
-            aliases = categories[1]
+        for idx, category in enumerate(self.model.db.get_categories(), start=1):
+            name = category.name
+            aliases = category.aliases
             response += f"{idx}. {name.capitalize()}: {', '.join(aliases)}\n"
         self.view.reply(update, response)
     
@@ -66,7 +66,7 @@ class Controller:
         try:
             match command:
                 case Command.EXPENSE:
-                    categories = self.model.get_categories()
+                    categories = self.model.db.get_categories()
                     expense = parse_expense(message, categories)
                     # update data in model
                     self.model.db.add_expense(expense)
