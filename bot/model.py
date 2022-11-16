@@ -37,10 +37,12 @@ class Database:
                 CREATE TABLE expenses (
                     id INTEGER PRIMARY KEY,
                     amount REAL,
-                    category_name TEXT,
+                    category_name TEXT DEFAULT "other",
                     description TEXT,
                     time DATE,
-                    FOREIGN KEY (category_name) REFERENCES categories(name)
+                    FOREIGN KEY (category_name)
+                    REFERENCES categories(name)
+                    ON DELETE SET DEFAULT
                 )
                 """
             )

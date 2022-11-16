@@ -7,7 +7,6 @@ from .core.utils import str_from_time
 
 
 class View:
-    
     def reply(self, update: Update, text: str) -> None:
         update.message.reply_text(text)
     

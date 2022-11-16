@@ -6,6 +6,7 @@ from .core.parser import command_type, parse_expense, parse_income, parse_month,
 from .view import View
 from .model import Model
 
+
 class Controller:
     def __init__(self, telegram_api_key: str, telegram_user_id: int, view: View, model: Model) -> None:
         self.updater = Updater(token=telegram_api_key)
