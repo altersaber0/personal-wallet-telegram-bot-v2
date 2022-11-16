@@ -3,6 +3,7 @@ import os
 import json
 from pathlib import Path
 from contextlib import contextmanager
+from dataclasses import asdict
 
 from .core.classes import Expense, Income, Category
 from .core.utils import time_from_str
@@ -64,7 +65,7 @@ class Database:
                 INSERT INTO incomes (amount, description, time)
                 VALUES (:amount, :description, :time)
                 """,
-                income._asdict()
+                asdict(income)
             )
     
     def add_expense(self, expense: Expense) -> None:
@@ -74,7 +75,7 @@ class Database:
                 INSERT INTO expenses (amount, description, time, category_name)
                 VALUES (:amount, :description, :time, :category)
                 """,
-                expense._asdict()
+                asdict(expense)
             )
     
     def delete_last_expense(self) -> Expense:

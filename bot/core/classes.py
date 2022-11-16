@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import NamedTuple
+from dataclasses import dataclass
 from datetime import datetime
 
 
@@ -10,20 +10,20 @@ class Command(Enum):
     MONTH = auto()
     UNKNOWN = auto()
 
-
-class Expense(NamedTuple):
+@dataclass
+class Expense:
     amount: float
     category: str
     description: str | None
     time: datetime
 
-
-class Income(NamedTuple):
+@dataclass
+class Income:
     amount: float
     description: str
     time: datetime
 
-
-class Category(NamedTuple):
+@dataclass
+class Category:
     name: str
     aliases: list[str]
