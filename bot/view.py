@@ -54,4 +54,11 @@ class View:
     def balance(self, update: Update, balance: float) -> None:
         response = f"Current balance is: {balance:.2f}"
         self.reply(update, response)
-        
+    
+    def categories(self, update: Update, categories: list[Category]) -> None:
+        response = f"Categories:\n"
+        for idx, category in enumerate(categories, start=1):
+            name = category.name
+            aliases = category.aliases
+            response += f"{idx}. {name.capitalize()}: {', '.join(aliases)}\n"
+        self.reply(update, response)

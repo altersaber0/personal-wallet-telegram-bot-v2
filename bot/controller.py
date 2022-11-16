@@ -133,12 +133,8 @@ class Controller:
 
     # /categories command
     def categories(self, update: Update, context) -> None:
-        response = f"Categories:\n"
-        for idx, category in enumerate(self.model.db.get_categories(), start=1):
-            name = category.name
-            aliases = category.aliases
-            response += f"{idx}. {name.capitalize()}: {', '.join(aliases)}\n"
-        self.view.reply(update, response)
+        categories = self.model.db.get_categories()
+        self.view.categories(update, categories)
     
     # match text message type to corresponding reply or error
     def handle_message(self, update: Update, context) -> None:
