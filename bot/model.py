@@ -22,8 +22,9 @@ class Database:
             conn.commit()
             conn.close()
     
-    # create database schema 
     def create_schema(self) -> None:
+        """Create database file and schema."""
+
         with self.connection() as cursor:
             cursor.execute(
                 """
@@ -148,9 +149,10 @@ class Model:
         self._db_path = self._folder_path / "database.db"
         self.db = Database(self._db_path)
     
-    # create and initialize all data files if they don't exist yet
     def setup(self) -> None:
-        # create folder, database and balance file
+        """Create and initialize all data files if they don't exist yet."""
+
+        # create folder
         if not self._folder_path.exists():
             os.mkdir(self._folder_path)
 
@@ -164,7 +166,7 @@ class Model:
             self.db.create_schema()
             self.db.add_category("other")
 
-            # if there is a starter json file with category names and aliases
+            # if there is a starter json file with category names and aliases, add them in
             categories_path = self._folder_path / "categories.json"
             if categories_path.exists():
                 with open(categories_path, "r", encoding="utf8") as f:
