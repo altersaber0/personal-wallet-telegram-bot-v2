@@ -9,11 +9,13 @@ class Expense:
     description: str | None
     time: datetime
 
+
 @dataclass
 class Income:
     amount: float
     description: str
     time: datetime
+
 
 @dataclass
 class Category:

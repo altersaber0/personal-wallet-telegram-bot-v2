@@ -8,7 +8,6 @@ from telegram.ext import (
 )
 
 from .core.classes import Expense, Income
-
 from .core.utils import time_now, isfloat, split_in_chunks
 from .view import View
 from .model import Model

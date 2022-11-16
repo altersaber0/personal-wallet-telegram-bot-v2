@@ -1,4 +1,5 @@
 import os
+
 import dotenv
 
 from bot.controller import Controller
