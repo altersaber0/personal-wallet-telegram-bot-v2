@@ -35,9 +35,7 @@ class ExpenseController:
 
         self.exp.amount = float(message)
         
-        buttons = split_in_chunks(
-            [category.name for category in self.model.db.get_categories()],
-            chunk_size=3)
+        buttons = split_in_chunks(self.model.db.get_categories(), chunk_size=3)
 
         self.view.reply_keyboard(
             update,
@@ -49,7 +47,7 @@ class ExpenseController:
     
     def category(self, update: Update, context) -> int:
         category = update.message.text
-        if category not in [cat.name for cat in self.model.db.get_categories()]:
+        if category not in self.model.db.get_categories():
             category = "other"
             self.view.reply(update, "Choosing \"other\"")
 

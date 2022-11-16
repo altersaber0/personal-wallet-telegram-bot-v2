@@ -5,7 +5,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from dataclasses import asdict
 
-from .core.classes import Expense, Income, Category
+from .core.classes import Expense, Income
 from .core.utils import time_from_str
 
 
@@ -28,8 +28,7 @@ class Database:
             cursor.execute(
                 """
                 CREATE TABLE categories (
-                    name TEXT PRIMARY KEY,
-                    aliases TEXT
+                    name TEXT PRIMARY KEY
                 )
                 """
             )
@@ -111,7 +110,7 @@ class Database:
 
             return expense
     
-    def get_categories(self) -> list[Category]:
+    def get_categories(self) -> list[str]:
         with self.connection() as cursor:
             cursor.execute(
                 """
@@ -119,21 +118,16 @@ class Database:
                 """
             )
             data = cursor.fetchall()
-            categories = [
-                Category(row[0], row[1].split())
-                for row in data
-            ]
+            categories = [cat[0] for cat in data]
             return categories
 
-    def add_category(self, category: Category) -> None:
-        name = category.name
-        aliases = " ".join(category.aliases)
+    def add_category(self, name: str) -> None:
         with self.connection() as cursor:
             cursor.execute(
                 """
-                INSERT INTO categories (name, aliases) VALUES (?, ?)
+                INSERT INTO categories VALUES (?)
                 """,
-                (name, aliases)
+                (name,)
             )
     
     def delete_category(self, name: str) -> None:
@@ -168,17 +162,13 @@ class Model:
         # create database
         if not self._db_path.exists():
             self.db.create_schema()
-            self.db.add_category(Category("other", ["другое"]))
+            self.db.add_category("other")
 
             # if there is a starter json file with category names and aliases
             categories_path = self._folder_path / "categories.json"
             if categories_path.exists():
                 with open(categories_path, "r", encoding="utf8") as f:
-                    categories: dict[str, list[str]] = json.load(f)
-                    categories = [
-                        Category(name, aliases)
-                        for name, aliases in categories.items()
-                    ]
+                    categories: list[str] = json.load(f)
                     for category in categories:
                         self.db.add_category(category)
     

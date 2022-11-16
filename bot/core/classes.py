@@ -15,9 +15,3 @@ class Income:
     amount: float
     description: str
     time: datetime
-
-
-@dataclass
-class Category:
-    name: str
-    aliases: list[str]

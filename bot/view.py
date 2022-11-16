@@ -1,7 +1,7 @@
 from telegram import ReplyKeyboardMarkup
 from telegram.update import Update
 
-from .core.classes import Expense, Income, Category
+from .core.classes import Expense, Income
 from .core.utils import str_from_time
 
 
@@ -46,10 +46,8 @@ class View:
         response = f"Current balance is: {balance:.2f}"
         self.reply(update, response)
     
-    def categories(self, update: Update, categories: list[Category]) -> None:
+    def categories(self, update: Update, categories: list[str]) -> None:
         response = f"Categories:\n"
         for idx, category in enumerate(categories, start=1):
-            name = category.name
-            aliases = category.aliases
-            response += f"{idx}. {name.capitalize()}: {', '.join(aliases)}\n"
+            response += f"{idx}. {category.capitalize()}\n"
         self.reply(update, response)
