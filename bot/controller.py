@@ -1,4 +1,3 @@
-from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
 from telegram.update import Update
 from telegram.ext import (
     Updater,
@@ -13,15 +12,14 @@ from .core.parser import (
     command_type,
     parse_expense,
     parse_income,
-    parse_month,
     parse_new_balance
 )
-from .core.utils import time_now
+from .core.utils import time_now, isfloat, split_in_chunks
 from .view import View
 from .model import Model
 
 
-class ExpenseConversation:
+class ExpenseController:
     AMOUNT = 0
     CATEGORY = 1
     DESCRIPTION = 2
@@ -34,24 +32,26 @@ class ExpenseConversation:
     def expense(self, update: Update, context) -> int:
         self.exp = Expense(0, "", None, time_now())
         self.view.reply(update, "Adding new expense.\nEnter the amount:")
-        return ExpenseConversation.AMOUNT
+        return ExpenseController.AMOUNT
     
     def amount(self, update: Update, context) -> int:
         message = update.message.text.lower()
-        try:
-            number = float(message)
-        except ValueError:
+        if not isfloat(message):
             return
 
-        self.exp.amount = number
-        keyboard = [[category.name for category in self.model.db.get_categories()]]  
+        self.exp.amount = float(message)
+        
+        buttons = split_in_chunks(
+            [category.name for category in self.model.db.get_categories()],
+            chunk_size=3)
+
         self.view.reply_keyboard(
             update,
             "Choose category name:",
-            buttons=keyboard,
+            buttons=buttons,
             placeholder="Category:"
         )
-        return ExpenseConversation.CATEGORY
+        return ExpenseController.CATEGORY
     
     def category(self, update: Update, context) -> int:
         category = update.message.text
@@ -61,21 +61,25 @@ class ExpenseConversation:
 
         self.exp.category = category
         self.view.reply(update, "Add a description or /skip")
-        return ExpenseConversation.DESCRIPTION
+        return ExpenseController.DESCRIPTION
     
     def description(self, update: Update, context) -> int:
         self.exp.description = update.message.text
+        # add and update data in model
         self.model.db.add_expense(self.exp)
         balance = self.model.get_balance()
         self.model.set_balance(balance - self.exp.amount)
+        # reply and reset
         self.view.expense(update, self.exp)
         self.exp = None
         return ConversationHandler.END
     
     def skip_description(self, update: Update, context) -> int:
+        # add and update data in model
         self.model.db.add_expense(self.exp)
         balance = self.model.get_balance()
         self.model.set_balance(balance - self.exp.amount)
+        # reply and reset
         self.view.expense(update, self.exp)
         self.exp = None
         return ConversationHandler.END
@@ -84,7 +88,47 @@ class ExpenseConversation:
         self.exp = None
         self.view.reply(update, "Stopping /expense conversation.")
         return ConversationHandler.END
-        
+
+
+class IncomeController:
+    AMOUNT = 0
+    DESCRIPTION = 1
+
+    def __init__(self, view: View, model: Model) -> None:
+        self.view = view
+        self.model = model
+        self.inc = None
+
+    def income(self, update: Update, context) -> int:
+        self.inc = Income(0, "", time_now())
+        self.view.reply(update, "Adding new income.\nEnter the amount:")
+        return IncomeController.AMOUNT
+    
+    def amount(self, update: Update, context) -> int:
+        message = update.message.text.lower()
+        if not isfloat(message):
+            return
+
+        self.inc.amount = float(message)
+        self.view.reply(update, "Add a description:")
+        return IncomeController.DESCRIPTION
+    
+    def description(self, update: Update, context) -> int:
+        self.inc.description = update.message.text
+        # add and update data in model
+        self.model.db.add_income(self.inc)
+        balance = self.model.get_balance()
+        self.model.set_balance(balance + self.inc.amount)
+        # reply and reset
+        self.view.income(update, self.inc)
+        self.inc = None
+        return ConversationHandler.END
+    
+    def cancel(self, update: Update, context) -> int:
+        self.inc = None
+        self.view.reply(update, "Stopping /income conversation.")
+        return ConversationHandler.END
+
 
 class Controller:
     def __init__(self, telegram_api_key: str, telegram_user_id: int, view: View, model: Model) -> None:
@@ -92,7 +136,8 @@ class Controller:
         self.user_filter = Filters.user(user_id=telegram_user_id)
         self.view = view
         self.model = model
-        self.exp_c = ExpenseConversation(self.view, self.model)
+        self.exp_c = ExpenseController(self.view, self.model)
+        self.inc_c = IncomeController(self.view, self.model)
     
     # /start command
     def start(self, update: Update, context) -> None:
@@ -120,8 +165,16 @@ class Controller:
     
     # /balance command
     def balance(self, update: Update, context) -> None:
-        balance = self.model.get_balance()
-        self.view.balance(update, balance)
+        if len(context.args) == 0:
+            balance = self.model.get_balance()
+            self.view.balance(update, balance)
+        elif len(context.args) == 1 and isfloat(context.args[0]):
+            balance = self.model.get_balance()
+            new_balance = float(context.args[0])
+            self.model.set_balance(new_balance)
+            self.view.balance(update, new_balance)
+        else:
+            self.view.reply(update, "Invalid /balance command")
 
     # /cancel_last command
     def cancel_last(self, update: Update, context) -> None:
@@ -191,19 +244,19 @@ class Controller:
         dp.add_handler(ConversationHandler(
             entry_points=[CommandHandler("expense", self.exp_c.expense)],
             states={
-                ExpenseConversation.AMOUNT: [
+                ExpenseController.AMOUNT: [
                     MessageHandler(
                         Filters.text & self.user_filter,
                         self.exp_c.amount
                     )
                 ],
-                ExpenseConversation.CATEGORY: [
+                ExpenseController.CATEGORY: [
                     MessageHandler(
                         Filters.text & self.user_filter,
                         self.exp_c.category
                     )
                 ],
-                ExpenseConversation.DESCRIPTION: [
+                ExpenseController.DESCRIPTION: [
                     MessageHandler(
                         Filters.text & (~Filters.command) & self.user_filter,
                         self.exp_c.description
@@ -212,6 +265,25 @@ class Controller:
                 ]
             },
             fallbacks=[CommandHandler("cancel", self.exp_c.cancel)]
+        ))
+        # /income conversation handler
+        dp.add_handler(ConversationHandler(
+            entry_points=[CommandHandler("income", self.inc_c.income)],
+            states={
+                IncomeController.AMOUNT: [
+                    MessageHandler(
+                        Filters.text & self.user_filter,
+                        self.inc_c.amount
+                    )
+                ],
+                IncomeController.DESCRIPTION: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.inc_c.description
+                    )
+                ]
+            },
+            fallbacks=[CommandHandler("cancel", self.inc_c.cancel)]
         ))
         
         # start polling updates from Telegram servers
