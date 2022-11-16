@@ -1,14 +1,6 @@
-from enum import Enum, auto
 from dataclasses import dataclass
 from datetime import datetime
 
-
-class Command(Enum):
-    EXPENSE = auto()
-    INCOME = auto()
-    SET_BALANCE = auto()
-    MONTH = auto()
-    UNKNOWN = auto()
 
 @dataclass
 class Expense:

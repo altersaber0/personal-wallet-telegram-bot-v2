@@ -7,13 +7,8 @@ from telegram.ext import (
     Filters
 )
 
-from .core.classes import Expense, Income, Command
-from .core.parser import (
-    command_type,
-    parse_expense,
-    parse_income,
-    parse_new_balance
-)
+from .core.classes import Expense, Income
+
 from .core.utils import time_now, isfloat, split_in_chunks
 from .view import View
 from .model import Model
@@ -47,7 +42,7 @@ class ExpenseController:
 
         self.view.reply_keyboard(
             update,
-            "Choose category name:",
+            text="Choose category name:",
             buttons=buttons,
             placeholder="Category:"
         )
@@ -188,40 +183,6 @@ class Controller:
     def categories(self, update: Update, context) -> None:
         categories = self.model.db.get_categories()
         self.view.categories(update, categories)
-    
-    # match text message type to corresponding reply or error
-    def handle_message(self, update: Update, context) -> None:
-        message = update.message.text
-        command = command_type(message)
-        try:
-            match command:
-                case Command.EXPENSE:
-                    categories = self.model.db.get_categories()
-                    expense = parse_expense(message, categories)
-                    # update data in model
-                    self.model.db.add_expense(expense)
-                    balance = self.model.get_balance()
-                    self.model.set_balance(balance - expense.amount)
-                    self.view.expense(update, expense)
-
-                case Command.INCOME:
-                    income = parse_income(message)
-                    # update data in model
-                    self.model.db.add_income(income)
-                    balance = self.model.get_balance()
-                    self.model.set_balance(balance + income.amount)
-                    self.view.income(update, income)
-
-                case Command.SET_BALANCE:
-                    new = parse_new_balance(message)
-                    self.model.set_balance(new)
-                    self.view.balance(update, new)
-
-                case Command.UNKNOWN:
-                    self.view.reply(update, "Unknown text command.")
-                    
-        except ValueError:
-            self.view.error(update, command)
 
     def start_bot(self, poll_interval: float, timeout: float) -> None:
         # create DB and balance files if they don't exist yet
@@ -235,24 +196,19 @@ class Controller:
         dp.add_handler(CommandHandler("balance", self.balance, filters=self.user_filter))
         dp.add_handler(CommandHandler("cancel_last", self.cancel_last, filters=self.user_filter))
 
-        # filter out /command messages
-        # dp.add_handler(MessageHandler(
-        #     Filters.text & (~Filters.command) & self.user_filter,
-        #     self.handle_message
-        # ))
-        # /expense conversation handler
+        # /expense conversation command
         dp.add_handler(ConversationHandler(
             entry_points=[CommandHandler("expense", self.exp_c.expense)],
             states={
                 ExpenseController.AMOUNT: [
                     MessageHandler(
-                        Filters.text & self.user_filter,
+                        Filters.text & (~Filters.command) & self.user_filter,
                         self.exp_c.amount
                     )
                 ],
                 ExpenseController.CATEGORY: [
                     MessageHandler(
-                        Filters.text & self.user_filter,
+                        Filters.text & (~Filters.command) & self.user_filter,
                         self.exp_c.category
                     )
                 ],
@@ -266,13 +222,14 @@ class Controller:
             },
             fallbacks=[CommandHandler("cancel", self.exp_c.cancel)]
         ))
-        # /income conversation handler
+
+        # /income conversation command
         dp.add_handler(ConversationHandler(
             entry_points=[CommandHandler("income", self.inc_c.income)],
             states={
                 IncomeController.AMOUNT: [
                     MessageHandler(
-                        Filters.text & self.user_filter,
+                        Filters.text & (~Filters.command) & self.user_filter,
                         self.inc_c.amount
                     )
                 ],
