@@ -46,7 +46,7 @@ class ExpenseController:
         
         # send keyboard with categories to choose from
         buttons = split_in_rows(self.model.db.get_categories(), row_size=3)
-        self.view.reply_keyboard(
+        self.view.reply_with_replykeyboard(
             update,
             text="Choose category name:",
             buttons=buttons,
@@ -67,7 +67,7 @@ class ExpenseController:
             self.view.reply(update, "Choosing \"other\"")
 
         self.exp.category = category
-        self.view.reply(update, "Add a description or /skip")
+        self.view.reply_and_remove_replykeyboard(update, "Add a description or /skip")
         return ExpenseController.DESCRIPTION
     
     def description(self, update: Update, context) -> int:

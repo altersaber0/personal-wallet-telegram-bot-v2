@@ -1,4 +1,4 @@
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.update import Update
 
 from .core.classes import Expense, Income
@@ -11,15 +11,17 @@ class View:
 
         update.message.reply_text(text)
     
-    def reply_keyboard(self, update: Update, *, text: str, buttons: list[list[str]], placeholder: str = "") -> None:
+    def reply_with_replykeyboard(self, update: Update, *, text: str, buttons: list[list[str]], placeholder: str = "") -> None:
         """Show a ReplyKeyboard with the given button labels to the user."""
 
         keyboard = ReplyKeyboardMarkup(
             buttons,
-            one_time_keyboard=True,
             input_field_placeholder=placeholder
         )
         update.message.reply_text(text, reply_markup=keyboard)
+    
+    def reply_and_remove_replykeyboard(self, update: Update, text: str) -> None:
+        update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
     
     def expense(self, update: Update, expense: Expense) -> None:
         """Show successful addition of an Expense."""
