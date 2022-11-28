@@ -16,6 +16,7 @@ class Database:
     @contextmanager
     def connection(self):
         conn = sqlite3.connect(self.path)
+        conn.execute("PRAGMA foreign_keys = 1")
         try:
             yield conn.cursor()
         finally:
@@ -44,6 +45,7 @@ class Database:
                     FOREIGN KEY (category_name)
                     REFERENCES categories(name)
                     ON DELETE SET DEFAULT
+                    ON UPDATE CASCADE
                 )
                 """
             )
@@ -138,6 +140,17 @@ class Database:
                 DELETE FROM categories WHERE name = ?
                 """,
                 (name,)
+            )
+    
+    def update_category(self, old: str, new: str) -> None:
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                UPDATE categories
+                SET name = ?
+                WHERE name = ?
+                """,
+                (new, old)
             )
 
 

@@ -14,7 +14,7 @@ from .view import View
 from .model import Model
 
 
-class ExpenseController:
+class ExpenseConv:
     # states of the conversation
     AMOUNT = 0
     CATEGORY = 1
@@ -31,7 +31,7 @@ class ExpenseController:
         # create dummy Expense object to fill in the process
         self.exp = Expense(0, "", None, time_now())
         self.view.reply(update, "Adding new expense.\nEnter the amount:")
-        return ExpenseController.AMOUNT
+        return ExpenseConv.AMOUNT
     
     def amount(self, update: Update, context: CallbackContext) -> int:
         """
@@ -41,6 +41,7 @@ class ExpenseController:
 
         message = update.message.text.lower()
         if not isfloat(message):
+            self.view.reply(update, f"\"{message}\" is not a valid number.\nTry again.")
             return
 
         self.exp.amount = float(message)
@@ -53,7 +54,7 @@ class ExpenseController:
             buttons=buttons,
             placeholder="Category:"
         )
-        return ExpenseController.CATEGORY
+        return ExpenseConv.CATEGORY
     
     def category(self, update: Update, context: CallbackContext) -> int:
         """
@@ -69,7 +70,7 @@ class ExpenseController:
 
         self.exp.category = category
         self.view.reply_and_remove_replykeyboard(update, "Add a description or /skip")
-        return ExpenseController.DESCRIPTION
+        return ExpenseConv.DESCRIPTION
     
     def description(self, update: Update, context: CallbackContext) -> int:
         """
@@ -107,11 +108,11 @@ class ExpenseController:
 
         # reset and reply
         self.exp = None
-        self.view.reply(update, "Stopping /expense conversation.")
+        self.view.reply(update, "Command cancelled.")
         return ConversationHandler.END
 
 
-class IncomeController:
+class IncomeConv:
     # states of the conversation
     AMOUNT = 0
     DESCRIPTION = 1
@@ -126,7 +127,7 @@ class IncomeController:
 
         self.inc = Income(0, "", time_now())
         self.view.reply(update, "Adding new income.\nEnter the amount:")
-        return IncomeController.AMOUNT
+        return IncomeConv.AMOUNT
     
     def amount(self, update: Update, context: CallbackContext) -> int:
         """
@@ -141,7 +142,7 @@ class IncomeController:
 
         self.inc.amount = float(message)
         self.view.reply(update, "Add a description:")
-        return IncomeController.DESCRIPTION
+        return IncomeConv.DESCRIPTION
     
     def description(self, update: Update, context: CallbackContext) -> int:
         """
@@ -159,12 +160,159 @@ class IncomeController:
         self.inc = None
         return ConversationHandler.END
 
-    # /cancel command to stop the conversation at any state
     def cancel(self, update: Update, context: CallbackContext) -> int:
         """/cancel command to stop the conversation at any state."""
 
         self.inc = None
-        self.view.reply(update, "Stopping /income conversation.")
+        self.view.reply(update, "Command cancelled.")
+        return ConversationHandler.END
+
+
+class AddCategory:
+    CATEGORY = 0
+
+    def __init__(self, view: View, model: Model) -> None:
+        self.view = view
+        self.model = model
+
+    def add_category(self, update: Update, context: CallbackContext) -> int:
+        self.view.reply(update, "Enter the name of a new category:")
+        return AddCategory.CATEGORY
+    
+    def category(self, update: Update, context: CallbackContext) -> int:
+        category = update.message.text.lower()
+        if category in self.model.db.get_categories():
+            self.view.reply(update, "This name is already taken. Try again:")
+            return
+        
+        self.model.db.add_category(category)
+        self.view.reply(update, f"Added new category: \"{category}\"")
+
+        return ConversationHandler.END
+    
+    def cancel(self, update: Update, context: CallbackContext) -> int:
+        """/cancel command to stop the conversation at any state."""
+
+        self.view.reply(update, "Command cancelled.")
+        return ConversationHandler.END
+
+
+class UpdateCategory:
+    CATEGORY = 0
+    NEW_NAME = 1
+
+    def __init__(self, view: View, model: Model) -> None:
+        self.view = view
+        self.model = model
+        self.old_name = None
+    
+    def update_category(self, update: Update, context: CallbackContext) -> int:
+        buttons = split_in_rows(self.model.db.get_categories(), row_size=3)
+        self.view.reply_with_replykeyboard(
+            update,
+            text="Choose which category to update:",
+            buttons=buttons,
+            placeholder="Category:"
+        )
+        return UpdateCategory.CATEGORY
+    
+    def category(self, update: Update, context: CallbackContext) -> int:
+        old = update.message.text.lower()
+
+        categories = self.model.db.get_categories()
+        categories.remove("other")
+
+        if old not in categories:
+            self.view.reply(update, "This category doesn't exist. Try again.")
+            return
+        if old == "other":
+            self.view.reply(update, "You cannot update \"other\". Try again.")
+            return
+        
+        self.old_name = old
+        self.view.reply_and_remove_replykeyboard(update, f"Enter new name for category \"{old}\":")
+        return UpdateCategory.NEW_NAME
+    
+    def new_name(self, update: Update, context: CallbackContext) -> int:
+        new = update.message.text.lower()
+        if new in self.model.db.get_categories():
+            self.view.reply(update, f"Name \"{new}\" is already taken. Try again:")
+            return
+        
+        self.model.db.update_category(self.old_name, new)
+        self.view.reply(update, f"Renamed category \"{self.old_name}\" to \"{new}\".")
+        self.old_name = None
+        return ConversationHandler.END
+
+    def cancel(self, update: Update, context: CallbackContext) -> int:
+        """/cancel command to stop the conversation at any state."""
+
+        self.old_name = None
+        self.view.reply(update, "Command cancelled.")
+        return ConversationHandler.END
+
+
+class DeleteCategory:
+    CATEGORY = 0
+    CONFIRM = 1
+
+    def __init__(self, view: View, model: Model) -> None:
+        self.view = view
+        self.model = model
+        self.cat = None
+    
+    def delete_category(self, update: Update, context: CallbackContext) -> int:
+        buttons = split_in_rows(self.model.db.get_categories(), row_size=3)
+        self.view.reply_with_replykeyboard(
+            update,
+            text="Choose which category to delete:",
+            buttons=buttons,
+            placeholder="Category:"
+        )
+        return DeleteCategory.CATEGORY
+    
+    def category(self, update: Update, context: CallbackContext) -> int:
+        cat = update.message.text.lower()
+
+        categories = self.model.db.get_categories()
+        categories.remove("other")
+
+        if cat not in categories:
+            self.view.reply(update, "This category doesn't exist. Try again.")
+            return
+        if cat == "other":
+            self.view.reply(update, "You cannot delete \"other\". Try again.")
+            return
+        
+        self.cat = cat
+        self.view.reply_with_replykeyboard(
+            update,
+            text=f"Do you confirm deleting \"{cat}\"?",
+            buttons=[["Yes"], ["No"]]
+        )
+        return UpdateCategory.NEW_NAME
+    
+    def confirm(self, update: Update, context: CallbackContext) -> int:
+        answer = update.message.text
+
+        if answer == "Yes":
+            self.model.db.delete_category(self.cat)
+            self.view.reply_and_remove_replykeyboard(update, f"Deleted category \"{self.cat}\".")
+            self.cat = None
+            return ConversationHandler.END
+        elif answer == "No":
+            self.view.reply_and_remove_replykeyboard(update, "Operation cancelled.")
+            self.cat = None
+            return ConversationHandler.END
+        else:
+            self.view.reply(update, "Answer must be \"Yes\" or \"No\".\nTry again:")
+            return
+    
+    def cancel(self, update: Update, context: CallbackContext) -> int:
+        """/cancel command to stop the conversation at any state."""
+
+        self.old_name = None
+        self.view.reply(update, "Command cancelled.")
         return ConversationHandler.END
 
 
@@ -174,8 +322,11 @@ class Controller:
         self.user_filter = Filters.user(user_id=telegram_user_id)
         self.view = view
         self.model = model
-        self.exp_c = ExpenseController(self.view, self.model)
-        self.inc_c = IncomeController(self.view, self.model)
+        self.expconv = ExpenseConv(self.view, self.model)
+        self.incconv = IncomeConv(self.view, self.model)
+        self.addcat = AddCategory(self.view, self.model)
+        self.updcat = UpdateCategory(self.view, self.model)
+        self.delcat = DeleteCategory(self.view, self.model)
     
     def start(self, update: Update, context: CallbackContext) -> None:
         """/start - command to start the bot."""
@@ -202,14 +353,17 @@ class Controller:
         can set new balance if it's a valid number.
         """
 
+        # no context - show balance
         if len(context.args) == 0:
             balance = self.model.get_balance()
             self.view.balance(update, balance)
+        # 1 numeric argument - set new balance
         elif len(context.args) == 1 and isfloat(context.args[0]):
             balance = self.model.get_balance()
             new_balance = float(context.args[0])
             self.model.set_balance(new_balance)
             self.view.balance(update, new_balance)
+        # invalid command
         else:
             self.view.reply(update, "Invalid /balance command")
 
@@ -246,36 +400,36 @@ class Controller:
         dp.add_handler(CommandHandler("balance", self.balance, filters=self.user_filter))
         dp.add_handler(CommandHandler("cancel_last", self.cancel_last, filters=self.user_filter))
 
-        # /expense conversation handler
+        # /expense
         dp.add_handler(ConversationHandler(
             entry_points=[
                 CommandHandler(
                     "expense",
-                    self.exp_c.expense,
+                    self.expconv.expense,
                     filters=self.user_filter
                 )
             ],
             states={
-                ExpenseController.AMOUNT: [
+                ExpenseConv.AMOUNT: [
                     MessageHandler(
                         Filters.text & (~Filters.command) & self.user_filter,
-                        self.exp_c.amount
+                        self.expconv.amount
                     )
                 ],
-                ExpenseController.CATEGORY: [
+                ExpenseConv.CATEGORY: [
                     MessageHandler(
                         Filters.text & (~Filters.command) & self.user_filter,
-                        self.exp_c.category
+                        self.expconv.category
                     )
                 ],
-                ExpenseController.DESCRIPTION: [
+                ExpenseConv.DESCRIPTION: [
                     MessageHandler(
                         Filters.text & (~Filters.command) & self.user_filter,
-                        self.exp_c.description
+                        self.expconv.description
                     ),
                     CommandHandler(
                         "skip",
-                        self.exp_c.skip_description,
+                        self.expconv.skip_description,
                         filters=self.user_filter
                     )
                 ]
@@ -283,39 +437,129 @@ class Controller:
             fallbacks=[
                 CommandHandler(
                     "cancel",
-                    self.exp_c.cancel,
+                    self.expconv.cancel,
                     filters=self.user_filter
                 )
             ]
         ))
 
-        # /income conversation handler
+        # /income
         dp.add_handler(ConversationHandler(
             entry_points=[
                 CommandHandler(
                     "income",
-                    self.inc_c.income,
+                    self.incconv.income,
                     filters=self.user_filter
                 )
             ],
             states={
-                IncomeController.AMOUNT: [
+                IncomeConv.AMOUNT: [
                     MessageHandler(
                         Filters.text & (~Filters.command) & self.user_filter,
-                        self.inc_c.amount
+                        self.incconv.amount
                     )
                 ],
-                IncomeController.DESCRIPTION: [
+                IncomeConv.DESCRIPTION: [
                     MessageHandler(
                         Filters.text & (~Filters.command) & self.user_filter,
-                        self.inc_c.description
+                        self.incconv.description
                     )
                 ]
             },
             fallbacks=[
                 CommandHandler(
                     "cancel",
-                    self.inc_c.cancel,
+                    self.incconv.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
+
+        # /add_category
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "add_category",
+                    self.addcat.add_category,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                AddCategory.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.addcat.category
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.addcat.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
+
+        # /update_category
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "update_category",
+                    self.updcat.update_category,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                UpdateCategory.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.updcat.category
+                    )
+                ],
+                UpdateCategory.NEW_NAME: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.updcat.new_name
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.updcat.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
+
+        # /delete_category
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "delete_category",
+                    self.delcat.delete_category,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                DeleteCategory.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.delcat.category
+                    )
+                ],
+                DeleteCategory.CONFIRM: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.delcat.confirm
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.delcat.cancel,
                     filters=self.user_filter
                 )
             ]
