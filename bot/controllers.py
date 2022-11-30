@@ -5,33 +5,36 @@ from telegram.ext import (
     MessageHandler,
     ConversationHandler,
     Filters,
-    CallbackContext
+    CallbackContext,
+    BaseFilter
 )
 
 from .core.classes import Expense, Income
 from .core.utils import time_now, isfloat, split_in_rows
+from .core.controller_abc import Controller, block_if_in_blocked_mode
 from .view import View
 from .model import Model
 
 
-class ExpenseConv:
+class AddExpense(Controller):
     # states of the conversation
     AMOUNT = 0
     CATEGORY = 1
     DESCRIPTION = 2
 
-    def __init__(self, view: View, model: Model) -> None:
-        self.view = view
-        self.model = model
+    def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
+        super().__init__(updater, user_filter, view, model)
+        # save expense object for filling up between conversation states
         self.exp = None
-
+    
+    @block_if_in_blocked_mode
     def expense(self, update: Update, context: CallbackContext) -> int:
         """/expense command - entry point to conversation."""
 
         # create dummy Expense object to fill in the process
         self.exp = Expense(0, "", None, time_now())
         self.view.reply(update, "Adding new expense.\nEnter the amount:")
-        return ExpenseConv.AMOUNT
+        return AddExpense.AMOUNT
     
     def amount(self, update: Update, context: CallbackContext) -> int:
         """
@@ -54,7 +57,7 @@ class ExpenseConv:
             buttons=buttons,
             placeholder="Category:"
         )
-        return ExpenseConv.CATEGORY
+        return AddExpense.CATEGORY
     
     def category(self, update: Update, context: CallbackContext) -> int:
         """
@@ -70,7 +73,7 @@ class ExpenseConv:
 
         self.exp.category = category
         self.view.reply_and_remove_replykeyboard(update, "Add a description or /skip")
-        return ExpenseConv.DESCRIPTION
+        return AddExpense.DESCRIPTION
     
     def description(self, update: Update, context: CallbackContext) -> int:
         """
@@ -111,23 +114,68 @@ class ExpenseConv:
         self.view.reply(update, "Command cancelled.")
         return ConversationHandler.END
 
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "expense",
+                    self.expense,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                AddExpense.AMOUNT: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.amount
+                    )
+                ],
+                AddExpense.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.category
+                    )
+                ],
+                AddExpense.DESCRIPTION: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.description
+                    ),
+                    CommandHandler(
+                        "skip",
+                        self.skip_description,
+                        filters=self.user_filter
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
 
-class IncomeConv:
+
+class AddIncome(Controller):
     # states of the conversation
     AMOUNT = 0
     DESCRIPTION = 1
 
-    def __init__(self, view: View, model: Model) -> None:
-        self.view = view
-        self.model = model
+    def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
+        super().__init__(updater, user_filter, view, model)
+        # save income object for filling up between conversation states
         self.inc = None
-
+    
+    @block_if_in_blocked_mode
     def income(self, update: Update, context: CallbackContext) -> int:
         """/income command - entry point to conversation."""
 
         self.inc = Income(0, "", time_now())
         self.view.reply(update, "Adding new income.\nEnter the amount:")
-        return IncomeConv.AMOUNT
+        return AddIncome.AMOUNT
     
     def amount(self, update: Update, context: CallbackContext) -> int:
         """
@@ -142,7 +190,7 @@ class IncomeConv:
 
         self.inc.amount = float(message)
         self.view.reply(update, "Add a description:")
-        return IncomeConv.DESCRIPTION
+        return AddIncome.DESCRIPTION
     
     def description(self, update: Update, context: CallbackContext) -> int:
         """
@@ -166,15 +214,46 @@ class IncomeConv:
         self.inc = None
         self.view.reply(update, "Command cancelled.")
         return ConversationHandler.END
+    
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "income",
+                    self.income,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                AddIncome.AMOUNT: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.amount
+                    )
+                ],
+                AddIncome.DESCRIPTION: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.description
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
 
 
-class AddCategory:
+class AddCategory(Controller):
+    # states of the conversation
     CATEGORY = 0
 
-    def __init__(self, view: View, model: Model) -> None:
-        self.view = view
-        self.model = model
-
+    @block_if_in_blocked_mode
     def add_category(self, update: Update, context: CallbackContext) -> int:
         """/add_category command - entry point to conversation."""
 
@@ -201,17 +280,46 @@ class AddCategory:
 
         self.view.reply(update, "Command cancelled.")
         return ConversationHandler.END
+    
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "add_category",
+                    self.add_category,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                AddCategory.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.category
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
 
 
-class UpdateCategory:
+class UpdateCategory(Controller):
+    # states of the conversation
     CATEGORY = 0
     NEW_NAME = 1
 
-    def __init__(self, view: View, model: Model) -> None:
-        self.view = view
-        self.model = model
+    def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
+        super().__init__(updater, user_filter, view, model)
+        # save old name of the category between conversation states
         self.old_name = None
-    
+
+    @block_if_in_blocked_mode
     def update_category(self, update: Update, context: CallbackContext) -> int:
         """/update_category command - entry point to conversation."""
 
@@ -264,17 +372,52 @@ class UpdateCategory:
         self.old_name = None
         self.view.reply(update, "Command cancelled.")
         return ConversationHandler.END
+    
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "update_category",
+                    self.update_category,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                UpdateCategory.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.category
+                    )
+                ],
+                UpdateCategory.NEW_NAME: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.new_name
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
 
 
-class DeleteCategory:
+class DeleteCategory(Controller):
+    # states of the conversation
     CATEGORY = 0
     CONFIRM = 1
 
-    def __init__(self, view: View, model: Model) -> None:
-        self.view = view
-        self.model = model
+    def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
+        super().__init__(updater, user_filter, view, model)
+        # save category between conversation states
         self.cat = None
     
+    @block_if_in_blocked_mode
     def delete_category(self, update: Update, context: CallbackContext) -> int:
         """/delete_category command - entry point to conversation."""
 
@@ -333,27 +476,52 @@ class DeleteCategory:
         """/cancel command to stop the conversation at any state."""
 
         self.old_name = None
-        self.view.reply(update, "Command cancelled.")
+        self.view.reply_and_remove_replykeyboard(update, "Command cancelled.")
         return ConversationHandler.END
-
-
-class Controller:
-    def __init__(self, telegram_api_key: str, telegram_user_id: int, view: View, model: Model) -> None:
-        self.updater = Updater(token=telegram_api_key)
-        self.user_filter = Filters.user(user_id=telegram_user_id)
-        self.view = view
-        self.model = model
-        self.expconv = ExpenseConv(self.view, self.model)
-        self.incconv = IncomeConv(self.view, self.model)
-        self.addcat = AddCategory(self.view, self.model)
-        self.updcat = UpdateCategory(self.view, self.model)
-        self.delcat = DeleteCategory(self.view, self.model)
     
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "delete_category",
+                    self.delete_category,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                DeleteCategory.CATEGORY: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.category
+                    )
+                ],
+                DeleteCategory.CONFIRM: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.confirm
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
+
+
+class PlainCallbacks(Controller):
+
+    @block_if_in_blocked_mode
     def start(self, update: Update, context: CallbackContext) -> None:
         """/start - command to start the bot."""
 
         self.view.reply(update, "Bot started.")
     
+    @block_if_in_blocked_mode
     def help(self, update: Update, context: CallbackContext) -> None:
         """/help - command to show the list of available commands."""
 
@@ -371,6 +539,7 @@ class Controller:
             "/delete_category - delete existing category (expenses become \"other\")"
         ]))
     
+    @block_if_in_blocked_mode
     def balance(self, update: Update, context: CallbackContext) -> None:
         """
         /balance - command to show the current balance. First and only context argument 
@@ -391,6 +560,14 @@ class Controller:
         else:
             self.view.reply(update, "Invalid /balance command")
 
+    @block_if_in_blocked_mode
+    def categories(self, update: Update, context: CallbackContext) -> None:
+        """/categories - command to show current list of categories."""
+
+        categories = self.model.db.get_categories()
+        self.view.categories(update, categories)
+    
+    @block_if_in_blocked_mode
     def cancel_last(self, update: Update, context: CallbackContext) -> None:
         """/cancel_last - command to delete the last added expense."""
 
@@ -399,195 +576,58 @@ class Controller:
         balance = self.model.get_balance()
         self.model.set_balance(balance + expense.amount)
         self.view.cancel(update, expense)
+    
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(CommandHandler("start", self.start, filters=self.user_filter))
+        dp.add_handler(CommandHandler("help", self.help, filters=self.user_filter))
+        dp.add_handler(CommandHandler("balance", self.balance, filters=self.user_filter))
+        dp.add_handler(CommandHandler("categories", self.categories, filters=self.user_filter))
+        dp.add_handler(CommandHandler("cancel_last", self.cancel_last, filters=self.user_filter))
 
-    def categories(self, update: Update, context: CallbackContext) -> None:
-        """/categories - command to show current list of categories."""
 
-        categories = self.model.db.get_categories()
-        self.view.categories(update, categories)
+class MasterController(Controller):
+    def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
+        super().__init__(updater, user_filter, view, model)
+        self.plain_callbacks = PlainCallbacks(updater, user_filter, view, model)
+        self.add_expense = AddExpense(updater, user_filter, view, model)
+        self.add_income = AddIncome(updater, user_filter, view, model)
+        self.add_category = AddCategory(updater, user_filter, view, model)
+        self.update_category = UpdateCategory(updater, user_filter, view, model)
+        self.delete_category = DeleteCategory(updater, user_filter, view, model)
+        self.controllers: list[Controller] = [
+            self.plain_callbacks,
+            self.add_expense,
+            self.add_income,
+            self.add_category,
+            self.update_category,
+            self.delete_category
+        ]
+
+    def block(self, update: Update, context: CallbackContext) -> None:
+        """/block command - block all commands from executing until next /block."""
+
+        for controller in self.controllers:
+            controller.blocked_mode = not controller.blocked_mode
+
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(CommandHandler("block", self.block, filters=self.user_filter))
 
     def start_bot(self, poll_interval: float, timeout: float) -> None:
         """
         Create all data files if the don't exist yet,
-        initialize command and conversation handlers 
+        initialize handlers in controllers 
         and start polling updates from Telegram servers.
         """
 
         # create DB and balance files if they don't exist yet
         self.model.setup()
 
-        # /command handlers
-        dp = self.updater.dispatcher
-        dp.add_handler(CommandHandler("start", self.start, filters=self.user_filter))
-        dp.add_handler(CommandHandler("help", self.help, filters=self.user_filter))
-        dp.add_handler(CommandHandler("categories", self.categories, filters=self.user_filter))
-        dp.add_handler(CommandHandler("balance", self.balance, filters=self.user_filter))
-        dp.add_handler(CommandHandler("cancel_last", self.cancel_last, filters=self.user_filter))
-
-        # /expense
-        dp.add_handler(ConversationHandler(
-            entry_points=[
-                CommandHandler(
-                    "expense",
-                    self.expconv.expense,
-                    filters=self.user_filter
-                )
-            ],
-            states={
-                ExpenseConv.AMOUNT: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.expconv.amount
-                    )
-                ],
-                ExpenseConv.CATEGORY: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.expconv.category
-                    )
-                ],
-                ExpenseConv.DESCRIPTION: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.expconv.description
-                    ),
-                    CommandHandler(
-                        "skip",
-                        self.expconv.skip_description,
-                        filters=self.user_filter
-                    )
-                ]
-            },
-            fallbacks=[
-                CommandHandler(
-                    "cancel",
-                    self.expconv.cancel,
-                    filters=self.user_filter
-                )
-            ]
-        ))
-
-        # /income
-        dp.add_handler(ConversationHandler(
-            entry_points=[
-                CommandHandler(
-                    "income",
-                    self.incconv.income,
-                    filters=self.user_filter
-                )
-            ],
-            states={
-                IncomeConv.AMOUNT: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.incconv.amount
-                    )
-                ],
-                IncomeConv.DESCRIPTION: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.incconv.description
-                    )
-                ]
-            },
-            fallbacks=[
-                CommandHandler(
-                    "cancel",
-                    self.incconv.cancel,
-                    filters=self.user_filter
-                )
-            ]
-        ))
-
-        # /add_category
-        dp.add_handler(ConversationHandler(
-            entry_points=[
-                CommandHandler(
-                    "add_category",
-                    self.addcat.add_category,
-                    filters=self.user_filter
-                )
-            ],
-            states={
-                AddCategory.CATEGORY: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.addcat.category
-                    )
-                ]
-            },
-            fallbacks=[
-                CommandHandler(
-                    "cancel",
-                    self.addcat.cancel,
-                    filters=self.user_filter
-                )
-            ]
-        ))
-
-        # /update_category
-        dp.add_handler(ConversationHandler(
-            entry_points=[
-                CommandHandler(
-                    "update_category",
-                    self.updcat.update_category,
-                    filters=self.user_filter
-                )
-            ],
-            states={
-                UpdateCategory.CATEGORY: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.updcat.category
-                    )
-                ],
-                UpdateCategory.NEW_NAME: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.updcat.new_name
-                    )
-                ]
-            },
-            fallbacks=[
-                CommandHandler(
-                    "cancel",
-                    self.updcat.cancel,
-                    filters=self.user_filter
-                )
-            ]
-        ))
-
-        # /delete_category
-        dp.add_handler(ConversationHandler(
-            entry_points=[
-                CommandHandler(
-                    "delete_category",
-                    self.delcat.delete_category,
-                    filters=self.user_filter
-                )
-            ],
-            states={
-                DeleteCategory.CATEGORY: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.delcat.category
-                    )
-                ],
-                DeleteCategory.CONFIRM: [
-                    MessageHandler(
-                        Filters.text & (~Filters.command) & self.user_filter,
-                        self.delcat.confirm
-                    )
-                ]
-            },
-            fallbacks=[
-                CommandHandler(
-                    "cancel",
-                    self.delcat.cancel,
-                    filters=self.user_filter
-                )
-            ]
-        ))
+        # add handlers of all controllers to the dispatcher
+        self.add_handlers()
+        for controller in self.controllers:
+            controller.add_handlers()
         
         # start polling updates from Telegram servers
         print("Bot running...")
