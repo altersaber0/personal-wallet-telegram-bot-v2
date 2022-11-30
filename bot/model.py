@@ -5,7 +5,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from dataclasses import asdict
 
-from .core.classes import Expense, Income
+from .core.interfaces import Expense, Income
 from .core.utils import time_from_str
 
 

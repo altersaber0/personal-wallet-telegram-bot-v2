@@ -1,7 +1,7 @@
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.update import Update
 
-from .core.classes import Expense, Income
+from .core.interfaces import Expense, Income
 from .core.utils import str_from_time
 
 
