@@ -15,6 +15,11 @@ class Database:
 
     @contextmanager
     def connection(self):
+        """
+        Connect to the database with foreign keys enabled,
+        then commit and close the connection.
+        """
+
         conn = sqlite3.connect(self.path)
         conn.execute("PRAGMA foreign_keys = 1")
         try:

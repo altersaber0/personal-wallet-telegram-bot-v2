@@ -176,11 +176,17 @@ class AddCategory:
         self.model = model
 
     def add_category(self, update: Update, context: CallbackContext) -> int:
+        """/add_category command - entry point to conversation."""
+
         self.view.reply(update, "Enter the name of a new category:")
         return AddCategory.CATEGORY
     
     def category(self, update: Update, context: CallbackContext) -> int:
+        """Ask user for a new category name."""
+
         category = update.message.text.lower()
+
+        # ask for a name until it is unique
         if category in self.model.db.get_categories():
             self.view.reply(update, "This name is already taken. Try again:")
             return
@@ -207,6 +213,8 @@ class UpdateCategory:
         self.old_name = None
     
     def update_category(self, update: Update, context: CallbackContext) -> int:
+        """/update_category command - entry point to conversation."""
+
         buttons = split_in_rows(self.model.db.get_categories(), row_size=3)
         self.view.reply_with_replykeyboard(
             update,
@@ -217,11 +225,13 @@ class UpdateCategory:
         return UpdateCategory.CATEGORY
     
     def category(self, update: Update, context: CallbackContext) -> int:
+        """Ask the user which category to update."""
+
         old = update.message.text.lower()
 
+        # exclude "other" category from the list so it can't be updated
         categories = self.model.db.get_categories()
         categories.remove("other")
-
         if old not in categories:
             self.view.reply(update, "This category doesn't exist. Try again.")
             return
@@ -234,7 +244,11 @@ class UpdateCategory:
         return UpdateCategory.NEW_NAME
     
     def new_name(self, update: Update, context: CallbackContext) -> int:
+        """Ask the user for a new category name."""
+
         new = update.message.text.lower()
+
+        # ask for a name until it is unique
         if new in self.model.db.get_categories():
             self.view.reply(update, f"Name \"{new}\" is already taken. Try again:")
             return
@@ -262,6 +276,8 @@ class DeleteCategory:
         self.cat = None
     
     def delete_category(self, update: Update, context: CallbackContext) -> int:
+        """/delete_category command - entry point to conversation."""
+
         buttons = split_in_rows(self.model.db.get_categories(), row_size=3)
         self.view.reply_with_replykeyboard(
             update,
@@ -272,11 +288,13 @@ class DeleteCategory:
         return DeleteCategory.CATEGORY
     
     def category(self, update: Update, context: CallbackContext) -> int:
+        """Ask the user which category to delete."""
+
         cat = update.message.text.lower()
 
+        # exclude "other" category from the list so it can't be deleted
         categories = self.model.db.get_categories()
         categories.remove("other")
-
         if cat not in categories:
             self.view.reply(update, "This category doesn't exist. Try again.")
             return
@@ -293,8 +311,11 @@ class DeleteCategory:
         return UpdateCategory.NEW_NAME
     
     def confirm(self, update: Update, context: CallbackContext) -> int:
+        """Ask the user to confirm deletion of the selected category."""
+
         answer = update.message.text
 
+        # match the action based on confirmation answer
         if answer == "Yes":
             self.model.db.delete_category(self.cat)
             self.view.reply_and_remove_replykeyboard(update, f"Deleted category \"{self.cat}\".")
@@ -344,7 +365,10 @@ class Controller:
             "/expense - add new expense",
             "/income - add new income",
             "/cancel_last - cancel last expense",
-            "/categories - show category names"
+            "/categories - show category names",
+            "/add_category - add new category",
+            "/update_category - rename existing category (except \"other\")",
+            "/delete_category - delete existing category (expenses become \"other\")"
         ]))
     
     def balance(self, update: Update, context: CallbackContext) -> None:
