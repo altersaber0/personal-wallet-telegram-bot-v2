@@ -1,6 +1,5 @@
 import sys
 import os
-from datetime import datetime
 
 import dotenv
 from telegram.ext import Updater, Filters

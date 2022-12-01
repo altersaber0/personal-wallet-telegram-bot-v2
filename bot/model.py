@@ -179,11 +179,12 @@ class Database:
             )    
     
     def expenses_in(self, date: datetime) -> list[Expense]:
-        start_date = datetime(date.year, date.month, 1, 1, 1, 1)
+        # defining time interval bounds for expenses
+        start_date = datetime(date.year, date.month, 1, 0, 0, 0)
         if start_date.month < 12:
-            end_date = datetime(start_date.year, start_date.month + 1, 1)
+            end_date = datetime(start_date.year, start_date.month + 1, 1, 0, 0, 0)
         else:
-            end_date = datetime(start_date.year + 1, 1, 1)
+            end_date = datetime(start_date.year + 1, 1, 1, 0, 0, 0)
 
         with self.connection() as cursor:
             cursor.execute(
@@ -194,8 +195,9 @@ class Database:
                 (start_date, end_date)
             )       
             results = cursor.fetchall()
-            results = [list(result)[1:] for result in results]
 
+            # parse results into Expense objects
+            results = [list(result)[1:] for result in results]
             expenses = []
             for result in results:
                 if result[2] == "":
