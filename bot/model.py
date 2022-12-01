@@ -200,3 +200,58 @@ class Model:
     def set_balance(self, new: float) -> None:
         with open(self._balance_path, "w") as f:
             f.write(str(new))
+
+
+class ReadOnlyDatabase(Database):
+    """Allows only data reading, other operations aren't executed."""
+
+    def create_schema(self) -> None:
+        pass
+
+    def add_income(self, income: Income) -> None:
+        pass
+
+    def add_expense(self, expense: Expense) -> None:
+        pass
+
+    def delete_last_expense(self) -> Expense:
+        # just get and return last expense without deleting it
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                SELECT * FROM expenses
+                WHERE id = (SELECT MAX(id) FROM expenses)
+                """
+            )
+            
+            result = list(cursor.fetchone())[1:]
+
+            if result[2] == "":
+                result[2] = None
+  
+            result[3] = time_from_str(result[3])
+
+            expense = Expense(*result)
+
+            return expense 
+    
+    def add_category(self, name: str) -> None:
+        pass
+
+    def delete_category(self, name: str) -> None:
+        pass
+
+    def update_category(self, old: str, new: str) -> None:
+        pass
+
+
+class DummyModel(Model):
+    def __init__(self, folder: str) -> None:
+        super().__init__(folder)
+        self.db = ReadOnlyDatabase(self._db_path)
+    
+    def setup(self) -> None:
+        pass
+
+    def set_balance(self, new: float) -> None:
+        pass

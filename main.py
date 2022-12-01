@@ -1,3 +1,4 @@
+import sys
 import os
 
 import dotenv
@@ -5,7 +6,7 @@ from telegram.ext import Updater, Filters
 
 from bot.controllers import MasterController
 from bot.view import View
-from bot.model import Model
+from bot.model import Model, DummyModel
 
 
 def main():
@@ -17,7 +18,17 @@ def main():
     updater = Updater(TELEGRAM_API_KEY)
     user_filter = Filters.user(TELEGRAM_USER_ID)
     view = View()
-    model = Model(DATA_DIR_PATH)
+
+    if len(sys.argv) == 1:
+        model = Model(DATA_DIR_PATH)
+    else:
+        match sys.argv[1:]:
+            case ["-ro" | "--read-only"]:
+                model = DummyModel(DATA_DIR_PATH)
+            case _:
+                print("Invalid command line arguments.")
+                return
+
 
     controller = MasterController(updater, user_filter, view, model)
     
