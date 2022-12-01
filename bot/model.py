@@ -178,8 +178,33 @@ class Database:
                 (time, amount)
             )    
     
-    def expenses_in_month(month: datetime) -> list[Expense]:
-        ...
+    def expenses_in(self, date: datetime) -> list[Expense]:
+        start_date = datetime(date.year, date.month, 1, 1, 1, 1)
+        if start_date.month < 12:
+            end_date = datetime(start_date.year, start_date.month + 1, 1)
+        else:
+            end_date = datetime(start_date.year + 1, 1, 1)
+
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                SELECT * FROM expenses
+                WHERE strftime('%s', expenses.time) BETWEEN strftime('%s', ?) AND strftime('%s', ?)
+                """,
+                (start_date, end_date)
+            )       
+            results = cursor.fetchall()
+            results = [list(result)[1:] for result in results]
+
+            expenses = []
+            for result in results:
+                if result[2] == "":
+                    None
+                result[3] = time_from_str(result[3])
+                expense = Expense(*result)
+                expenses.append(expense)
+            
+            return expenses
 
 
 class Model:
