@@ -609,7 +609,7 @@ class MonthStat(Controller):
             self.view.reply(update, f"There were no expenses in month {date:%Y-%m}")
             return
 
-        biggest = sorted(expenses, key=lambda exp: exp.amount, reverse=True)[-3:]
+        biggest = sorted(expenses, key=lambda exp: exp.amount, reverse=True)[:3]
 
         statistics = {category: 0 for category in self.model.db.get_categories()}
         for expense in expenses:
