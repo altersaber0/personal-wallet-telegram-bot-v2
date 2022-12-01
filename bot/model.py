@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import json
+from datetime import datetime
 from pathlib import Path
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -157,6 +158,9 @@ class Database:
                 """,
                 (new, old)
             )
+    
+    def expenses_in_month(month: datetime) -> list[Expense]:
+        ...
 
 
 class Model:
