@@ -65,6 +65,15 @@ class Database:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE balance_history (
+                    id INTEGER PRIMARY KEY,
+                    time DATE,
+                    amount REAL
+                )
+                """
+            )
 
     def add_income(self, income: Income) -> None:
         with self.connection() as cursor:
@@ -158,6 +167,16 @@ class Database:
                 """,
                 (new, old)
             )
+    
+    def add_balance_to_history(self, time: datetime, amount: float) -> None:
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO balance_history (time, amount)
+                VALUES (?, ?)
+                """,
+                (time, amount)
+            )    
     
     def expenses_in_month(month: datetime) -> list[Expense]:
         ...
