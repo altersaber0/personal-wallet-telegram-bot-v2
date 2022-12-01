@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from telegram.update import Update
 from telegram.ext import (
     Updater,
@@ -10,7 +12,7 @@ from telegram.ext import (
 )
 
 from .core.controller_abc import Controller, block_if_in_blocked_mode
-from .core.interfaces import Expense, Income
+from .core.interfaces import Expense, Income, MonthStatistics
 from .core.utils import time_now, isfloat, split_in_rows
 from .view import View
 from .model import Model
@@ -586,6 +588,167 @@ class PlainCallbacks(Controller):
         dp.add_handler(CommandHandler("cancel_last", self.cancel_last, filters=self.user_filter))
 
 
+class MonthStat(Controller):
+    # states of the conversation
+    MONTH = 0
+    YEAR = 1
+
+    def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
+        super().__init__(updater, user_filter, view, model)
+        # save chosen month between conversation states
+        self.mon = None
+    
+    def statistics(self, update: Update, date: datetime) -> None:
+        """Construct MonthStatistics object based on a given date and send it to View."""
+
+        year = date.year
+        month = date.month
+
+        expenses = self.model.db.expenses_in(date)
+        if not expenses:
+            self.view.reply(update, f"There were no expenses in month {date:%Y-%m}")
+            return
+
+        biggest = sorted(expenses, key=lambda exp: exp.amount, reverse=True)[-3:]
+
+        statistics = {category: 0 for category in self.model.db.get_categories()}
+        for expense in expenses:
+            statistics[expense.category] += expense.amount
+        
+        if date.month > 1:
+            previous_month = datetime(date.year, date.month - 1, 1)
+        else:
+            previous_month = datetime(date.year - 1, 12, 1)
+
+        start_balance = self.model.db.get_balance_from_history(previous_month)
+        
+        now = datetime.now()
+        if date.year == now.year and date.month == now.month:
+            end_balance = self.model.get_balance()
+        else:
+            end_balance = self.model.db.get_balance_from_history(date)
+        
+        month_statistics = MonthStatistics(
+            year,
+            month,
+            statistics,
+            biggest,
+            start_balance,
+            end_balance
+        )
+
+        self.view.month_statistics(update, month_statistics)   
+
+    @block_if_in_blocked_mode
+    def month_statistics(self, update: Update, context: CallbackContext) -> int:
+        """/month_statistics - entry point to the conversation"""
+
+        self.view.reply(update, "Enter month number or /current_month")
+        
+        return MonthStat.MONTH
+    
+    def month(self, update: Update, context: CallbackContext) -> int:
+        """Ask the user which month to analyze."""
+
+        msg = update.message.text.lower()
+        if not msg.isdigit():
+            self.view.reply(update, "Month must be an integer.")
+            return
+
+        month = int(msg)
+        if not (1 <= month <= 12):
+            self.view.reply(update, "Month must be between 1 and 12.")
+            return
+
+        self.mon = month
+        self.view.reply(update, "Enter year as YYYY or /current_year")
+
+        return MonthStat.YEAR
+    
+    def year(self, update: Update, context: CallbackContext) -> int:
+        """Ask the user which year the chosen month belongs to."""
+
+        msg = update.message.text.lower()
+        if not msg.isdigit():
+            self.view.reply(update, "Year must be an integer")
+            return
+
+        year = int(msg)
+        if year > time_now().year:
+            self.view.reply(update, "Year must be not greater than current year.")
+            return
+        
+        date = datetime(year, self.mon, 1).replace(microsecond=0)
+        self.statistics(update, date)
+        self.mon = None
+        
+        return ConversationHandler.END
+    
+    def current_year(self, update: Update, context: CallbackContext) -> int:
+        current = datetime.now()
+        date = datetime(current.year, self.mon, 1).replace(microsecond=0)
+        self.statistics(update, date)
+        self.mon = None
+
+        return ConversationHandler.END
+    
+    def current_month(self, update: Update, context: CallbackContext) -> int:
+        current = datetime.now()
+        date = datetime(current.year, current.month, 1)
+        self.statistics(update, date)
+        
+        return ConversationHandler.END
+    
+    def cancel(self, update: Update, context: CallbackContext) -> int:
+        self.mon = None
+        self.view.reply(update, "Command cancelled.")
+
+        return ConversationHandler.END
+    
+    def add_handlers(self) -> None:
+        dp = self.updater.dispatcher
+        dp.add_handler(ConversationHandler(
+            entry_points=[
+                CommandHandler(
+                    "month_statistics",
+                    self.month_statistics,
+                    filters=self.user_filter
+                )
+            ],
+            states={
+                MonthStat.MONTH: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.month
+                    ),
+                    CommandHandler(
+                        "current_month",
+                        self.current_month,
+                        filters=self.user_filter
+                    )
+                ],
+                MonthStat.YEAR: [
+                    MessageHandler(
+                        Filters.text & (~Filters.command) & self.user_filter,
+                        self.year
+                    ),
+                    CommandHandler(
+                        "current_year",
+                        self.current_year,
+                        filters=self.user_filter
+                    )
+                ]
+            },
+            fallbacks=[
+                CommandHandler(
+                    "cancel",
+                    self.cancel,
+                    filters=self.user_filter
+                )
+            ]
+        ))
+
+
 class MasterController(Controller):
     def __init__(self, updater: Updater, user_filter: BaseFilter, view: View, model: Model) -> None:
         super().__init__(updater, user_filter, view, model)
@@ -595,13 +758,15 @@ class MasterController(Controller):
         self.add_category = AddCategory(updater, user_filter, view, model)
         self.update_category = UpdateCategory(updater, user_filter, view, model)
         self.delete_category = DeleteCategory(updater, user_filter, view, model)
+        self.month_stat = MonthStat(updater, user_filter, view, model)
         self.controllers: list[Controller] = [
             self.plain_callbacks,
             self.add_expense,
             self.add_income,
             self.add_category,
             self.update_category,
-            self.delete_category
+            self.delete_category,
+            self.month_stat
         ]
 
     def block(self, update: Update, context: CallbackContext) -> None:

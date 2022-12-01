@@ -176,9 +176,28 @@ class Database:
                 VALUES (?, ?)
                 """,
                 (time, amount)
-            )    
+            )
+
+    def get_balance_from_history(self, date: datetime) -> float:
+        """Retrieve balance at the end of a given month."""
+
+        with self.connection() as cursor:
+            cursor.execute(
+                """
+                SELECT * FROM balance_history
+                WHERE strftime('%s', balance_history.time) > strftime('%s', ?)
+                LIMIT 1
+                """,
+                (date,)
+            )
+            result = cursor.fetchone()
+            balance = result[2]
+
+            return balance
     
     def expenses_in(self, date: datetime) -> list[Expense]:
+        """Get list of all expenses in a given month."""
+
         # defining time interval bounds for expenses
         start_date = datetime(date.year, date.month, 1, 0, 0, 0)
         if start_date.month < 12:

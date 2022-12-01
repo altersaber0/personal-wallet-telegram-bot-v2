@@ -22,9 +22,10 @@ class MonthStatistics:
     year: int
     month: int
     statistics: dict[str, float]
+    biggest_expenses: list[Expense]
     start_balance: float
     end_balance: float
 
     @property
-    def difference(self) -> float:
+    def balance_difference(self) -> float:
         return self.end_balance - self.start_balance

@@ -13,9 +13,9 @@ def track_balance(model: Model) -> None:
 
         # get next month datetime obj
         if current.month < 12:
-            next_month = datetime(current.year, current.month + 1, 1)
+            next_month = datetime(current.year, current.month + 1, 1, 0, 0, 0)
         else:
-            next_month = datetime(current.year + 1, 1, 1)
+            next_month = datetime(current.year + 1, 1, 1, 0, 0, 0)
 
         # calculate difference in seconds - 60
         # (so the datetime.now() clearly stays in bounds of the current month)
