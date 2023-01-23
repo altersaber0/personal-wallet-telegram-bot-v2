@@ -1,9 +1,11 @@
 import sys
 import os
+import threading
 
 import dotenv
 from telegram.ext import Updater, Filters
 
+from bot.balance_tracker import track_balance
 from bot.controllers import MasterController
 from bot.view import View
 from bot.model import Model, DummyModel
@@ -29,6 +31,8 @@ def main():
                 print("Invalid command line arguments.")
                 return
 
+    balance_tracker_thread = threading.Thread(target=track_balance, args=(model,))
+    balance_tracker_thread.start()
 
     controller = MasterController(updater, user_filter, view, model)
     
